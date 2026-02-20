@@ -1,0 +1,17 @@
+My name is Jishu. I am a software developer and tech enthusiast from India. 
+I run a business intelligence system and work on AI projects.
+My AI assistant is named N.A.T. (Natasha).
+
+I am passionate about:
+- AI and Machine Learning
+- Building software applications
+- Business Intelligence
+- Data analysis
+
+My skills include:
+- Python programming
+- JavaScript/TypeScript
+- Machine Learning
+- Data Engineering
+
+I like to learn new technologies and build innovative projects.
