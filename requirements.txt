@@ -16,4 +16,4 @@ rich
 tavily-python
 cohere
 langchain-huggingface
-python-multipart
+edge-tts

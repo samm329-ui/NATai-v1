@@ -1,10 +1,15 @@
-from typing import Optional, List, Dict
+"""
+Pydantic Models for N.A.T. AI Assistant
+Defines the strict data structures for API requests and responses.
+"""
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 class ChatType:
     GENERAL = "general"
     REALTIME = "realtime"
+    INTELLIGENCE = "intelligence"
 
 class Message(BaseModel):
     role: str
@@ -23,6 +28,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     chat_type: str = "general"
     use_search: bool = False
+    tts: bool = False  # Added for Video 2: Tells the server to generate TTS audio
 
 class ChatResponse(BaseModel):
     response: str
@@ -42,6 +48,54 @@ class SystemStatus(BaseModel):
     search_available: bool
     model_name: str
     active_sessions: int
+
+class IntelligenceRequest(BaseModel):
+    query: str
+    force_refresh: bool = False
+
+class ClassificationResult(BaseModel):
+    entity_type: str
+    name: str
+    industry: str
+    sector: str
+    country: str
+    is_listed: bool
+    stock_symbol: Optional[str] = None
+    exchange: Optional[str] = None
+    description: str
+
+class IntelligenceResponse(BaseModel):
+    success: bool
+    query: str
+    entity_name: str
+    entity_type: str
+    classification: Dict[str, Any]
+    structured_data: Dict[str, Any]
+    response: str
+    sources_searched: int
+    cached: bool
+    timestamp: str
+    api_sources_used: List[str] = Field(default_factory=list)
+
+class DetailedSystemStatus(BaseModel):
+    name: str
+    full_name: str
+    version: str
+    status: str
+    uptime_start: str
+    current_time: str
+    model: str
+    groq_api: str
+    tavily_search: str
+    alpha_vantage: str
+    fmp_data: str
+    news_api: str
+    google_search: str
+    vector_store: Dict[str, Any]
+    cache_status: Dict[str, Any]
+    active_sessions: int
+    endpoints: Dict[str, str]
+    api_sources_configured: List[str]
 
 class LearningDataItem(BaseModel):
     filename: str

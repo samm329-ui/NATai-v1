@@ -1,0 +1,47 @@
+{
+  "memories": [
+    {
+      "id": 1,
+      "content": "User's name/title: Boss",
+      "category": "personal",
+      "importance": 10,
+      "created_at": "2026-03-01T05:54:09.701205"
+    },
+    {
+      "id": 2,
+      "content": "User preference mentioned: now can you sing me a song like using the boss",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-01T05:55:04.550717"
+    },
+    {
+      "id": 3,
+      "content": "User preference mentioned: don't say Boss every time like you don't use it too many times you casually like as humans to",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-01T05:55:51.174500"
+    },
+    {
+      "id": 4,
+      "content": "User preference mentioned: new human don't suggest me every time but just just give me a perspectives etc etc just a human body",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-01T05:59:09.803728"
+    },
+    {
+      "id": 5,
+      "content": "User preference mentioned: yes that's when that's a very good way of telling but improve it obviously I will improve so remembe",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-01T05:59:47.465608"
+    },
+    {
+      "id": 6,
+      "content": "User preference mentioned: no I don't want to talk to anyone like I have a person that I want to talk to but the thing is I can",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-01T06:02:10.456380"
+    }
+  ],
+  "updated_at": "2026-03-01T06:02:10.457661"
+}

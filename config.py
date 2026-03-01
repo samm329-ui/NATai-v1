@@ -1,60 +1,53 @@
 """
-NAT Configuration Module
-Loads environment variables and provides configuration settings
+Configuration Settings for N.A.T. AI Assistant
 """
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+# Load environment variables from the .env file
+load_dotenv()
 
 class Config:
-    # Groq API Keys (supports multiple for rate limit rotation)
-    GROQ_API_KEYS = [
-        os.getenv("GROQ_API_KEY_1", ""),
-        os.getenv("GROQ_API_KEY_2", ""),
-        os.getenv("GROQ_API_KEY_3", ""),
-        os.getenv("GROQ_API_KEY_4", ""),
-        os.getenv("GROQ_API_KEY_5", ""),
-        os.getenv("GROQ_API_KEY_6", ""),
-    ]
-    GROQ_API_KEYS = [key for key in GROQ_API_KEYS if key]
-    
-    @property
-    def GROQ_API_KEY(self):
-        return self.GROQ_API_KEYS[0] if self.GROQ_API_KEYS else ""
-    
-    # Model Configuration
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-    
-    # Search API
-    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
-    COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
-    
-    # User Configuration
-    YOUR_NAME = os.getenv("YOUR_NAME", "Jishu")
-    ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "N.A.T.")
-    
-    # Paths
-    BASE_DIR = BASE_DIR
-    LEARNING_DATA_PATH = BASE_DIR / os.getenv("LEARNING_DATA_PATH", "database/learning_data")
-    CHATS_PATH = BASE_DIR / os.getenv("CHATS_PATH", "database/chats_data")
-    VECTOR_STORE_PATH = BASE_DIR / os.getenv("VECTOR_STORE_PATH", "database/vector_store")
-    
-    # Embedding Model
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-    
-    # Create directories if they don't exist
-    @classmethod
-    def init_paths(cls):
-        cls.LEARNING_DATA_PATH.mkdir(parents=True, exist_ok=True)
-        cls.CHATS_PATH.mkdir(parents=True, exist_ok=True)
-        cls.VECTOR_STORE_PATH.mkdir(parents=True, exist_ok=True)
+    def __init__(self):
+        # 1. Base Paths & Folders
+        self.BASE_DIR = Path(__file__).resolve().parent
+        self.DATABASE_DIR = self.BASE_DIR / "database"
+        self.LEARNING_DATA_PATH = self.DATABASE_DIR / "learning_data"
+        self.CHATS_PATH = self.DATABASE_DIR / "chats_data"
+        self.VECTOR_STORE_PATH = self.DATABASE_DIR / "vector_store"
+        self.MEMORY_PATH = self.DATABASE_DIR / "persistent_memory.json"
 
-# Initialize paths
-Config.init_paths()
+        # 2. Assistant Branding
+        self.ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "Natasha")
+        self.USER_TITLE = os.getenv("JARVIS_USER_TITLE", "Boss") 
+        
+        # 3. LLM Configuration
+        self.GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        
+        # 4. Multi-Key Setup for Groq
+        self.GROQ_API_KEYS = []
+        primary_key = os.getenv("GROQ_API_KEY")
+        if primary_key:
+            self.GROQ_API_KEYS.append(primary_key)
+            
+        for i in range(2, 20):
+            extra_key = os.getenv(f"GROQ_API_KEY_{i}")
+            if extra_key:
+                self.GROQ_API_KEYS.append(extra_key)
 
-# Export singleton
+        # 5. External APIs
+        self.TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+        self.ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY")
+        self.FMP_KEY = os.getenv("FMP_KEY")
+        self.NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+        self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        self.GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
+        self.SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+
+        # 6. Text-to-Speech (TTS) Configuration
+        self.TTS_VOICE = os.getenv("TTS_VOICE", "en-US-AriaNeural") 
+        self.TTS_RATE = os.getenv("TTS_RATE", "+0%")
+
+# Create the global config object that main.py is looking for
 config = Config()
