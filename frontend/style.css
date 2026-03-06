@@ -638,22 +638,6 @@ textarea { font-family: var(--font); color: var(--text); }
 }
 .input-wrapper textarea::placeholder { color: var(--text-muted); }
 
-/* Dictation wrapper */
-.dictation-wrapper {
-    flex: 1;
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.dictation-hidden {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
-}
-
 /* ACTION BUTTONS ROW — sits to the right of the textarea */
 .input-actions {
     display: flex;

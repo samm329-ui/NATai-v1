@@ -84,7 +84,7 @@ class TTSPlayer {
         if (!this.playing) this._playLoop();
     }
 
-    stop() {
+    stop.playing) this() {
         this.stopped = true;
         this.audio.pause();
         this.audio.removeAttribute('src');
@@ -167,7 +167,7 @@ function initOrb() {
     if (typeof OrbRenderer === 'undefined') return;
     try {
         orb = new OrbRenderer(orbContainer, {
-            hue: 280, // Purple/Pink hue for Natasha
+            hue: 280,
             hoverIntensity: 0.3,
             backgroundColor: [0.02, 0.02, 0.06]
         });
@@ -178,55 +178,39 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
-    // Initialize
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { micBtn.title = 'Speech not supported'; return; }
+
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = e => {
+        const result = e.results[e.results.length - 1];
+        const text = result[0].transcript;
+        messageInput.value = text;
+        autoResizeInput();
+        if (result.isFinal) {
+            stopListening();
+            if (text.trim()) sendMessage(text.trim());
+        }
+    };
+    recognition.onerror = () => stopListening();
+    recognition.onend = () => { if (isListening) stopListening(); };
 }
 
 function startListening() {
-    if (isStreaming) return;
-    
-    // Simple approach: focus input and let user use keyboard mic
-    messageInput.value = '';
-    messageInput.focus();
-    
+    if (!recognition || isStreaming) return;
     isListening = true;
     micBtn.classList.add('listening');
-    
-    // Listen for input changes (from dictation)
-    let lastValue = '';
-    const checkDictation = setInterval(() => {
-        const currentValue = messageInput.value;
-        
-        // If value changed and seems like speech input
-        if (currentValue !== lastValue && currentValue.trim().length > 0) {
-            lastValue = currentValue;
-            
-            // Wait a bit to see if user is still speaking
-            setTimeout(() => {
-                if (messageInput.value.trim()) {
-                    sendMessage(messageInput.value.trim());
-                    messageInput.value = '';
-                }
-            }, 1500);
-        }
-    }, 300);
-    
-    // Store interval to clear later
-    messageInput._dictationInterval = checkDictation;
-    
-    // Stop listening when user taps somewhere else or presses send
-    messageInput.addEventListener('blur', function() {
-        clearInterval(checkDictation);
-        isListening = false;
-        micBtn.classList.remove('listening');
-    }, { once: true });
+    try { recognition.start(); } catch (_) {}
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
-    if (messageInput._dictationInterval) {
-        clearInterval(messageInput._dictationInterval);
-    }
+    try { recognition.stop(); } catch (_) {}
 }
 
 async function checkHealth() {
@@ -236,11 +220,7 @@ async function checkHealth() {
         const ok = d.status === 'healthy';
         statusDot.classList.toggle('offline', !ok);
         statusText.textContent = ok ? 'Online' : 'Offline';
-        if (!ok) {
-            console.error('Server health check failed:', d);
-        }
-    } catch (e) {
-        console.error('Health check failed:', e);
+    } catch {
         statusDot.classList.add('offline');
         statusText.textContent = 'Offline';
     }

@@ -164,18 +164,12 @@
              ============================================================ -->
         <footer class="input-bar glass-panel">
             <div class="input-wrapper">
-                <div class="dictation-wrapper">
-                    <textarea id="message-input"
-                              placeholder="Ask N.A.T. anything..."
-                              rows="1"
-                              maxlength="32000"></textarea>
-                    <!-- Hidden input for iOS dictation -->
-                    <input type="text" id="dictation-input" class="dictation-hidden" x-webkit-speech webkitSpeech lang="en" />
-                </div>
+<textarea id="message-input"
+                          placeholder="Ask N.A.T. anything..."
+                          rows="1"
+                          maxlength="32000"></textarea>
                 <div class="input-actions">
-                    <!-- MIC BUTTON: Two SVG states. .mic-icon = outline
-                         (idle). .mic-icon-active = filled square (recording).
-                         CSS/JS toggles visibility based on state. -->
+                    <!-- MIC BUTTON -->
                     <button class="action-btn mic-btn" id="mic-btn" title="Voice input">
                         <!-- Microphone outline: mic body + stand -->
                         <svg class="mic-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
