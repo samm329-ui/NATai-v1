@@ -84,7 +84,7 @@ class TTSPlayer {
         if (!this.playing) this._playLoop();
     }
 
-    stop.playing) this() {
+    stop() {
         this.stopped = true;
         this.audio.pause();
         this.audio.removeAttribute('src');
