@@ -192,20 +192,30 @@ function initSpeech() {
     recognition.lang = 'en-US';
     recognition.maxAlternatives = 1;
 
+    // Prevent network error by setting interimResults properly
+    recognition.interimResults = true;
+
     recognition.onresult = e => {
-        console.log('Speech result event:', e);
         let transcript = '';
         for (let i = 0; i < e.results.length; i++) {
-            transcript += e.results[i][0].transcript;
-            console.log('Result ' + i + ':', e.results[i][0].transcript);
+            if (e.results[i].isFinal) {
+                transcript += e.results[i][0].transcript;
+            }
         }
+        
+        // If no final result, use interim
+        if (!transcript) {
+            transcript = e.results[e.results.length - 1][0].transcript;
+        }
+        
         if (transcript) {
             messageInput.value = transcript;
             autoResizeInput();
         }
-        if (e.results[0].isFinal) {
+        
+        // Send when final
+        if (e.results[e.results.length - 1].isFinal) {
             const finalText = messageInput.value.trim();
-            console.log('Final speech:', finalText);
             stopListening();
             if (finalText) {
                 sendMessage(finalText);
@@ -215,11 +225,13 @@ function initSpeech() {
     
     recognition.onerror = e => {
         console.error('Speech error:', e.error);
+        if (e.error === 'network') {
+            alert('Voice recognition requires internet. Please check your connection.');
+        }
         stopListening();
     };
     
     recognition.onend = () => {
-        console.log('Speech recognition ended');
         isListening = false;
         micBtn.classList.remove('listening');
     };
@@ -235,7 +247,6 @@ function startListening() {
     
     try {
         recognition.start();
-        console.log('Recognition started');
     } catch(e) {
         console.error('Start error:', e);
         isListening = false;
