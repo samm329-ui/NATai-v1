@@ -638,6 +638,15 @@ textarea { font-family: var(--font); color: var(--text); }
 }
 .input-wrapper textarea::placeholder { color: var(--text-muted); }
 
+/* iOS Safari dictation button */
+.input-wrapper textarea::-webkit-input-speech-button {
+    background: var(--accent);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    margin-right: 4px;
+}
+
 /* ACTION BUTTONS ROW — sits to the right of the textarea */
 .input-actions {
     display: flex;
