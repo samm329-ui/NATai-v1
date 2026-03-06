@@ -1,28 +1,24 @@
+#!/usr/bin/env python3
 import os
 import sys
+
+print("STARTING...", flush=True)
+print(f"PORT={os.environ.get('PORT', 'NOT_SET')}", flush=True)
+print(f"PYTHON={sys.version}", flush=True)
+
 import uvicorn
 
 if __name__ == "__main__":
-    print("==================================================")
-    print("Starting N.A.T. AI Assistant (Natasha)...")
-    print("==================================================")
-    print(f"Python version: {sys.version}")
-    print(f"PORT env: {os.environ.get('PORT', 'NOT SET')}")
-    
-    try:
-        port = int(os.environ.get("PORT", 8000))
-    except (ValueError, TypeError):
-        port = 8000
-        print(f"Invalid PORT, using default: {port}")
-    
-    reload = os.environ.get("RELOAD", "false").lower() == "true"
+    port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "0.0.0.0")
+    reload = os.environ.get("RELOAD", "false").lower() == "true"
     
-    print(f"Host: {host}, Port: {port}, Reload: {reload}")
-    sys.stdout.flush()
+    print(f"Starting uvicorn on {host}:{port} reload={reload}", flush=True)
     
-    try:
-        uvicorn.run("app.main:app", host=host, port=port, reload=reload)
-    except Exception as e:
-        print(f"ERROR: {e}")
-        sys.exit(1)
+    uvicorn.run(
+        "app.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info"
+    )
