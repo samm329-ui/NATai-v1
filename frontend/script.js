@@ -178,14 +178,10 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
-    const dictationInput = document.getElementById('dictation-input');
-    
     // Check what's available
     const hasSpeechAPI = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
-    const hasWebkitSpeech = dictationInput && 'webkitSpeech' in dictationInput;
     
     console.log('Speech API available:', hasSpeechAPI);
-    console.log('webkitSpeech available:', hasWebkitSpeech);
     
     if (hasSpeechAPI) {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -202,14 +198,10 @@ function initSpeech() {
         
         recognition.onresult = function(event) {
             let finalTranscript = '';
-            let interimTranscript = '';
             
             for (let i = 0; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += transcript;
-                } else {
-                    interimTranscript += transcript;
+                    finalTranscript += event.results[i][0].transcript;
                 }
             }
             
@@ -218,9 +210,6 @@ function initSpeech() {
                 autoResizeInput();
                 stopListening();
                 sendMessage(finalTranscript.trim());
-            } else if (interimTranscript) {
-                messageInput.value = interimTranscript;
-                autoResizeInput();
             }
         };
         
@@ -228,49 +217,27 @@ function initSpeech() {
             console.error('Speech error:', event.error);
             micBtn.classList.remove('listening');
             isListening = false;
-            // Try native dictation as fallback
-            startNativeDictation();
         };
         
         recognition.onend = function() {
             micBtn.classList.remove('listening');
             isListening = false;
         };
-    } else {
-        console.log('No Speech API - will use native dictation');
-    }
-}
-
-function startNativeDictation() {
-    const dictationInput = document.getElementById('dictation-input');
-    if (dictationInput) {
-        dictationInput.value = '';
-        dictationInput.focus();
-        
-        // Listen for dictation input
-        dictationInput.addEventListener('input', function() {
-            if (dictationInput.value.trim()) {
-                messageInput.value = dictationInput.value;
-                autoResizeInput();
-                sendMessage(dictationInput.value.trim());
-                dictationInput.value = '';
-            }
-        });
-        
-        // Also listen for webkit speech changes
-        dictationInput.addEventListener('webkitspeechchange', function() {
-            if (dictationInput.value.trim()) {
-                messageInput.value = dictationInput.value;
-                autoResizeInput();
-                sendMessage(dictationInput.value.trim());
-                dictationInput.value = '';
-            }
-        });
     }
 }
 
 function startListening() {
     if (isStreaming) return;
+    
+    // For iOS, directly use native dictation since Web Speech API network fails
+    // Check if this is iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isIOS) {
+        // On iOS, use native dictation input directly
+        useNativeDictation();
+        return;
+    }
     
     if (recognition) {
         try {
@@ -280,12 +247,55 @@ function startListening() {
             recognition.start();
         } catch(e) {
             console.error('Recognition start error:', e);
-            startNativeDictation();
+            useNativeDictation();
         }
     } else {
-        // No recognition API - use native dictation
-        startNativeDictation();
+        useNativeDictation();
     }
+}
+
+function useNativeDictation() {
+    // Create and trigger native dictation
+    const dictInput = document.createElement('input');
+    dictInput.type = 'text';
+    dictInput.setAttribute('x-webkit-speech', '');
+    dictInput.setAttribute('webkitSpeech', '');
+    dictInput.lang = 'en-US';
+    dictInput.style.position = 'absolute';
+    dictInput.style.opacity = '0';
+    dictInput.style.width = '100%';
+    dictInput.style.height = '100%';
+    dictInput.style.zIndex = '9999';
+    
+    document.body.appendChild(dictInput);
+    dictInput.focus();
+    
+    // Listen for result
+    dictInput.addEventListener('input', function() {
+        if (dictInput.value.trim()) {
+            messageInput.value = dictInput.value;
+            autoResizeInput();
+            sendMessage(dictInput.value.trim());
+            dictInput.remove();
+        }
+    });
+    
+    // Also try webkit change
+    dictInput.addEventListener('webkitspeechchange', function() {
+        if (dictInput.value.trim()) {
+            messageInput.value = dictInput.value;
+            autoResizeInput();
+            sendMessage(dictInput.value.trim());
+            dictInput.remove();
+        }
+    });
+    
+    // Remove after 5 seconds if no input
+    setTimeout(() => {
+        if (dictInput.parentNode) {
+            dictInput.remove();
+        }
+    }, 5000);
 }
 
 function stopListening() {
