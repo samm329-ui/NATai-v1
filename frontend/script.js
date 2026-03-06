@@ -178,92 +178,113 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
-    // Check for iOS native dictation (webkitSpeech)
-    if (messageInput && 'webkitSpeech' in messageInput) {
-        console.log('Using iOS native dictation');
-        messageInput.addEventListener('webkitspeechchange', function(e) {
-            const text = messageInput.value.trim();
-            if (text && !isStreaming) {
-                sendMessage(text);
+    const dictationInput = document.getElementById('dictation-input');
+    
+    // Check what's available
+    const hasSpeechAPI = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    const hasWebkitSpeech = dictationInput && 'webkitSpeech' in dictationInput;
+    
+    console.log('Speech API available:', hasSpeechAPI);
+    console.log('webkitSpeech available:', hasWebkitSpeech);
+    
+    if (hasSpeechAPI) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = function() {
+            console.log('Speech recognition started');
+            isListening = true;
+            micBtn.classList.add('listening');
+        };
+        
+        recognition.onresult = function(event) {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            
+            for (let i = 0; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            
+            if (finalTranscript) {
+                messageInput.value = finalTranscript;
+                autoResizeInput();
+                stopListening();
+                sendMessage(finalTranscript.trim());
+            } else if (interimTranscript) {
+                messageInput.value = interimTranscript;
+                autoResizeInput();
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Speech error:', event.error);
+            micBtn.classList.remove('listening');
+            isListening = false;
+            // Try native dictation as fallback
+            startNativeDictation();
+        };
+        
+        recognition.onend = function() {
+            micBtn.classList.remove('listening');
+            isListening = false;
+        };
+    } else {
+        console.log('No Speech API - will use native dictation');
+    }
+}
+
+function startNativeDictation() {
+    const dictationInput = document.getElementById('dictation-input');
+    if (dictationInput) {
+        dictationInput.value = '';
+        dictationInput.focus();
+        
+        // Listen for dictation input
+        dictationInput.addEventListener('input', function() {
+            if (dictationInput.value.trim()) {
+                messageInput.value = dictationInput.value;
+                autoResizeInput();
+                sendMessage(dictationInput.value.trim());
+                dictationInput.value = '';
             }
         });
-        micBtn.title = 'Tap mic for dictation';
-    }
-    
-    // Try Web Speech API as fallback
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { 
-        console.log('Web Speech API not supported');
-        if (!('webkitSpeech' in messageInput)) {
-            micBtn.title = 'Speech not supported';
-            micBtn.disabled = true;
-        }
-        return; 
-    }
-
-    recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = e => {
-        let transcript = '';
-        for (let i = 0; i < e.results.length; i++) {
-            if (e.results[i].isFinal) {
-                transcript += e.results[i][0].transcript;
+        
+        // Also listen for webkit speech changes
+        dictationInput.addEventListener('webkitspeechchange', function() {
+            if (dictationInput.value.trim()) {
+                messageInput.value = dictationInput.value;
+                autoResizeInput();
+                sendMessage(dictationInput.value.trim());
+                dictationInput.value = '';
             }
-        }
-        
-        if (!transcript) {
-            transcript = e.results[e.results.length - 1][0].transcript;
-        }
-        
-        if (transcript) {
-            messageInput.value = transcript;
-            autoResizeInput();
-        }
-        
-        if (e.results[e.results.length - 1].isFinal) {
-            const finalText = messageInput.value.trim();
-            stopListening();
-            if (finalText) {
-                sendMessage(finalText);
-            }
-        }
-    };
-    
-    recognition.onerror = e => {
-        console.error('Speech error:', e.error);
-        stopListening();
-    };
-    
-    recognition.onend = () => {
-        isListening = false;
-        micBtn.classList.remove('listening');
-    };
+        });
+    }
 }
 
 function startListening() {
-    // If Web Speech API available, use it
+    if (isStreaming) return;
+    
     if (recognition) {
-        if (isStreaming) return;
-        if (isListening) return;
-        
-        messageInput.value = '';
-        isListening = true;
-        micBtn.classList.add('listening');
-        
         try {
+            messageInput.value = '';
+            isListening = true;
+            micBtn.classList.add('listening');
             recognition.start();
         } catch(e) {
-            console.error('Start error:', e);
-            isListening = false;
-            micBtn.classList.remove('listening');
+            console.error('Recognition start error:', e);
+            startNativeDictation();
         }
     } else {
-        // Fallback: focus on input - iOS will show dictation
-        messageInput.focus();
+        // No recognition API - use native dictation
+        startNativeDictation();
     }
 }
 
@@ -271,7 +292,9 @@ function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
     if (recognition) {
-        try { recognition.stop(); } catch(e) {}
+        try {
+            recognition.stop();
+        } catch(e) {}
     }
 }
 

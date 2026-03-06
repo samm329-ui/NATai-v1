@@ -638,13 +638,20 @@ textarea { font-family: var(--font); color: var(--text); }
 }
 .input-wrapper textarea::placeholder { color: var(--text-muted); }
 
-/* iOS Safari dictation button */
-.input-wrapper textarea::-webkit-input-speech-button {
-    background: var(--accent);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    margin-right: 4px;
+/* Dictation wrapper */
+.dictation-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.dictation-hidden {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
 }
 
 /* ACTION BUTTONS ROW — sits to the right of the textarea */
