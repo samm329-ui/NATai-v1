@@ -178,133 +178,54 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
-    // Check what's available
-    const hasSpeechAPI = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
-    
-    console.log('Speech API available:', hasSpeechAPI);
-    
-    if (hasSpeechAPI) {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SR();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-        
-        recognition.onstart = function() {
-            console.log('Speech recognition started');
-            isListening = true;
-            micBtn.classList.add('listening');
-        };
-        
-        recognition.onresult = function(event) {
-            let finalTranscript = '';
-            
-            for (let i = 0; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                }
-            }
-            
-            if (finalTranscript) {
-                messageInput.value = finalTranscript;
-                autoResizeInput();
-                stopListening();
-                sendMessage(finalTranscript.trim());
-            }
-        };
-        
-        recognition.onerror = function(event) {
-            console.error('Speech error:', event.error);
-            micBtn.classList.remove('listening');
-            isListening = false;
-        };
-        
-        recognition.onend = function() {
-            micBtn.classList.remove('listening');
-            isListening = false;
-        };
-    }
+    // Initialize
 }
 
 function startListening() {
     if (isStreaming) return;
     
-    // For iOS, directly use native dictation since Web Speech API network fails
-    // Check if this is iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // Simple approach: focus input and let user use keyboard mic
+    messageInput.value = '';
+    messageInput.focus();
     
-    if (isIOS) {
-        // On iOS, use native dictation input directly
-        useNativeDictation();
-        return;
-    }
+    isListening = true;
+    micBtn.classList.add('listening');
     
-    if (recognition) {
-        try {
-            messageInput.value = '';
-            isListening = true;
-            micBtn.classList.add('listening');
-            recognition.start();
-        } catch(e) {
-            console.error('Recognition start error:', e);
-            useNativeDictation();
+    // Listen for input changes (from dictation)
+    let lastValue = '';
+    const checkDictation = setInterval(() => {
+        const currentValue = messageInput.value;
+        
+        // If value changed and seems like speech input
+        if (currentValue !== lastValue && currentValue.trim().length > 0) {
+            lastValue = currentValue;
+            
+            // Wait a bit to see if user is still speaking
+            setTimeout(() => {
+                if (messageInput.value.trim()) {
+                    sendMessage(messageInput.value.trim());
+                    messageInput.value = '';
+                }
+            }, 1500);
         }
-    } else {
-        useNativeDictation();
-    }
-}
-
-function useNativeDictation() {
-    // Create and trigger native dictation
-    const dictInput = document.createElement('input');
-    dictInput.type = 'text';
-    dictInput.setAttribute('x-webkit-speech', '');
-    dictInput.setAttribute('webkitSpeech', '');
-    dictInput.lang = 'en-US';
-    dictInput.style.position = 'absolute';
-    dictInput.style.opacity = '0';
-    dictInput.style.width = '100%';
-    dictInput.style.height = '100%';
-    dictInput.style.zIndex = '9999';
+    }, 300);
     
-    document.body.appendChild(dictInput);
-    dictInput.focus();
+    // Store interval to clear later
+    messageInput._dictationInterval = checkDictation;
     
-    // Listen for result
-    dictInput.addEventListener('input', function() {
-        if (dictInput.value.trim()) {
-            messageInput.value = dictInput.value;
-            autoResizeInput();
-            sendMessage(dictInput.value.trim());
-            dictInput.remove();
-        }
-    });
-    
-    // Also try webkit change
-    dictInput.addEventListener('webkitspeechchange', function() {
-        if (dictInput.value.trim()) {
-            messageInput.value = dictInput.value;
-            autoResizeInput();
-            sendMessage(dictInput.value.trim());
-            dictInput.remove();
-        }
-    });
-    
-    // Remove after 5 seconds if no input
-    setTimeout(() => {
-        if (dictInput.parentNode) {
-            dictInput.remove();
-        }
-    }, 5000);
+    // Stop listening when user taps somewhere else or presses send
+    messageInput.addEventListener('blur', function() {
+        clearInterval(checkDictation);
+        isListening = false;
+        micBtn.classList.remove('listening');
+    }, { once: true });
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
-    if (recognition) {
-        try {
-            recognition.stop();
-        } catch(e) {}
+    if (messageInput._dictationInterval) {
+        clearInterval(messageInput._dictationInterval);
     }
 }
 
