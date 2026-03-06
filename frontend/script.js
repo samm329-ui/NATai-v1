@@ -180,6 +180,7 @@ function initOrb() {
 function initSpeech() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { 
+        console.log('Speech Recognition not supported');
         micBtn.title = 'Speech not supported in this browser';
         micBtn.disabled = true;
         return; 
@@ -191,25 +192,21 @@ function initSpeech() {
     recognition.lang = 'en-US';
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-        console.log('Speech recognition started');
-        isListening = true;
-        micBtn.classList.add('listening');
-    };
-
     recognition.onresult = e => {
-        let text = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-            text += e.results[i][0].transcript;
+        console.log('Speech result event:', e);
+        let transcript = '';
+        for (let i = 0; i < e.results.length; i++) {
+            transcript += e.results[i][0].transcript;
+            console.log('Result ' + i + ':', e.results[i][0].transcript);
         }
-        if (text) {
-            messageInput.value = text;
+        if (transcript) {
+            messageInput.value = transcript;
             autoResizeInput();
-            console.log('Speech recognized:', text);
         }
-        if (e.results[e.results.length - 1].isFinal) {
-            stopListening();
+        if (e.results[0].isFinal) {
             const finalText = messageInput.value.trim();
+            console.log('Final speech:', finalText);
+            stopListening();
             if (finalText) {
                 sendMessage(finalText);
             }
@@ -217,42 +214,40 @@ function initSpeech() {
     };
     
     recognition.onerror = e => {
-        console.error('Speech recognition error:', e.error);
-        if (e.error === 'not-allowed') {
-            alert('Please allow microphone access to use voice input.');
-        } else if (e.error === 'no-speech') {
-            console.log('No speech detected, try again');
-        }
+        console.error('Speech error:', e.error);
         stopListening();
     };
     
     recognition.onend = () => {
         console.log('Speech recognition ended');
-        stopListening();
+        isListening = false;
+        micBtn.classList.remove('listening');
     };
 }
 
 function startListening() {
     if (!recognition || isStreaming) return;
+    if (isListening) return;
+    
+    messageInput.value = '';
+    isListening = true;
+    micBtn.classList.add('listening');
     
     try {
-        isListening = true;
-        micBtn.classList.add('listening');
-        messageInput.value = '';
         recognition.start();
-    } catch (e) {
-        console.error('Error starting recognition:', e);
-        stopListening();
+        console.log('Recognition started');
+    } catch(e) {
+        console.error('Start error:', e);
+        isListening = false;
+        micBtn.classList.remove('listening');
     }
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
-    try { 
-        if (recognition) recognition.stop(); 
-    } catch (e) {
-        // Ignore errors when stopping
+    if (recognition) {
+        try { recognition.stop(); } catch(e) {}
     }
 }
 
