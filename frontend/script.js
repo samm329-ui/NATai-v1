@@ -178,13 +178,18 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
+    // Try Web Speech API
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { micBtn.title = 'Speech not supported'; return; }
+    if (!SR) {
+        micBtn.title = 'Tap mic then use keyboard dictation';
+        return;
+    }
 
     recognition = new SR();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.interimResults = true;
 
     recognition.onresult = e => {
         const result = e.results[e.results.length - 1];
@@ -196,15 +201,32 @@ function initSpeech() {
             if (text.trim()) sendMessage(text.trim());
         }
     };
-    recognition.onerror = () => stopListening();
-    recognition.onend = () => { if (isListening) stopListening(); };
+    
+    recognition.onerror = e => {
+        console.log('Speech error:', e.error);
+        // On network error, just focus input - user can use keyboard dictation
+        if (e.error === 'network') {
+            messageInput.focus();
+            micBtn.title = 'Use keyboard mic for voice';
+        }
+        stopListening();
+    };
+    
+    recognition.onend = () => { 
+        if (isListening) stopListening(); 
+    };
 }
 
 function startListening() {
     if (!recognition || isStreaming) return;
     isListening = true;
     micBtn.classList.add('listening');
-    try { recognition.start(); } catch (_) {}
+    try { 
+        recognition.start(); 
+    } catch (e) {
+        // If already started or error, just focus input
+        messageInput.focus();
+    }
 }
 
 function stopListening() {
