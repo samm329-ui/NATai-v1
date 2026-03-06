@@ -41,9 +41,7 @@ async def lifespan(app: FastAPI):
     print(f"Streaming & TTS Engine Active")
     print("="*50)
     
-    print("\n[System] Initializing vector store...")
-    vector_store_service.load_or_create_vectorstore()
-    vector_store_service.add_learning_files()
+    print("\n[System] Vector store: Lazy loading (loads on first request)")
     
     print("\n[System] System ready!")
     print(f"  Model: {config.GROQ_MODEL}")

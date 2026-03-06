@@ -1,10 +1,9 @@
 import os
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
@@ -12,21 +11,26 @@ from config import config
 
 class VectorStoreService:
     def __init__(self):
-        # Using local HuggingFace embeddings (no API key required)
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        self._embeddings = None
         self.vector_store = None
         
-        # Split text into manageable chunks so we don't overflow the LLM context window
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
             length_function=len,
         )
         
-        # Ensure all necessary database directories exist
         os.makedirs(getattr(config, 'VECTOR_STORE_PATH', 'database/vector_store'), exist_ok=True)
         os.makedirs(getattr(config, 'LEARNING_DATA_PATH', 'database/learning_data'), exist_ok=True)
         os.makedirs(getattr(config, 'CHATS_PATH', 'database/chats_data'), exist_ok=True)
+
+    @property
+    def embeddings(self):
+        if self._embeddings is None:
+            print("[VectorStore] Loading embeddings model...")
+            from langchain_huggingface import HuggingFaceEmbeddings
+            self._embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        return self._embeddings
 
     def load_or_create_vectorstore(self):
         """Loads the FAISS index from disk, or creates a new one if it doesn't exist."""
