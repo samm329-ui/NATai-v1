@@ -179,7 +179,11 @@ function initOrb() {
    ================================================================ */
 function initSpeech() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { micBtn.title = 'Speech not supported'; return; }
+    if (!SR) { 
+        micBtn.title = 'Speech not supported in this browser';
+        micBtn.disabled = true;
+        return; 
+    }
 
     recognition = new SR();
     recognition.continuous = false;
@@ -196,7 +200,16 @@ function initSpeech() {
             if (text.trim()) sendMessage(text.trim());
         }
     };
-    recognition.onerror = () => stopListening();
+    
+    recognition.onerror = e => {
+        console.error('Speech recognition error:', e.error);
+        if (e.error === 'not-allowed') {
+            micBtn.title = 'Microphone permission denied';
+            alert('Please allow microphone access to use voice input.');
+        }
+        stopListening();
+    };
+    
     recognition.onend = () => { if (isListening) stopListening(); };
 }
 
@@ -220,7 +233,11 @@ async function checkHealth() {
         const ok = d.status === 'healthy';
         statusDot.classList.toggle('offline', !ok);
         statusText.textContent = ok ? 'Online' : 'Offline';
-    } catch {
+        if (!ok) {
+            console.error('Server health check failed:', d);
+        }
+    } catch (e) {
+        console.error('Health check failed:', e);
         statusDot.classList.add('offline');
         statusText.textContent = 'Offline';
     }
