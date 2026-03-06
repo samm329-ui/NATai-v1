@@ -192,8 +192,8 @@ function initSpeech() {
     recognition.lang = 'en-US';
     recognition.maxAlternatives = 1;
 
-    // Prevent network error by setting interimResults properly
-    recognition.interimResults = true;
+    // iOS Safari specific
+    recognition.grammars = null;
 
     recognition.onresult = e => {
         let transcript = '';
@@ -203,7 +203,6 @@ function initSpeech() {
             }
         }
         
-        // If no final result, use interim
         if (!transcript) {
             transcript = e.results[e.results.length - 1][0].transcript;
         }
@@ -213,7 +212,6 @@ function initSpeech() {
             autoResizeInput();
         }
         
-        // Send when final
         if (e.results[e.results.length - 1].isFinal) {
             const finalText = messageInput.value.trim();
             stopListening();
@@ -226,7 +224,9 @@ function initSpeech() {
     recognition.onerror = e => {
         console.error('Speech error:', e.error);
         if (e.error === 'network') {
-            alert('Voice recognition requires internet. Please check your connection.');
+            alert('Voice requires internet. Try using keyboard instead.');
+        } else if (e.error === 'not-allowed') {
+            alert('Please allow microphone access in browser settings.');
         }
         stopListening();
     };
