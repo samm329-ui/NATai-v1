@@ -178,61 +178,36 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 function initSpeech() {
-    // Try Web Speech API
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-        micBtn.title = 'Tap mic then use keyboard dictation';
-        return;
-    }
-
-    recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-
-    recognition.onresult = e => {
-        const result = e.results[e.results.length - 1];
-        const text = result[0].transcript;
-        messageInput.value = text;
-        autoResizeInput();
-        if (result.isFinal) {
-            stopListening();
-            if (text.trim()) sendMessage(text.trim());
-        }
-    };
-    
-    recognition.onerror = e => {
-        console.log('Speech error:', e.error);
-        // On network error, just focus input - user can use keyboard dictation
-        if (e.error === 'network') {
-            messageInput.focus();
-            micBtn.title = 'Use keyboard mic for voice';
-        }
-        stopListening();
-    };
-    
-    recognition.onend = () => { 
-        if (isListening) stopListening(); 
-    };
+    // Just focus input - let keyboard handle dictation
+    micBtn.title = 'Tap for voice input';
 }
 
 function startListening() {
-    if (!recognition || isStreaming) return;
+    if (isStreaming) return;
+    
+    // Focus the input - keyboard dictation will appear on mobile
+    messageInput.value = '';
+    messageInput.focus();
+    
     isListening = true;
     micBtn.classList.add('listening');
-    try { 
-        recognition.start(); 
-    } catch (e) {
-        // If already started or error, just focus input
-        messageInput.focus();
-    }
+    
+    // Listen for when user stops typing/dictating
+    let timeout;
+    messageInput.oninput = function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            if (messageInput.value.trim() && !isStreaming) {
+                sendMessage(messageInput.value.trim());
+                messageInput.value = '';
+            }
+        }, 1500);
+    };
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
-    try { recognition.stop(); } catch (_) {}
 }
 
 async function checkHealth() {
