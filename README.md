@@ -1,6 +1,6 @@
-# J.A.R.V.I.S - Just A Rather Very Intelligent System
+# N.A.T. AI Assistant
 
-An intelligent AI assistant built with FastAPI, LangChain, Groq AI, and a modern glass-morphism web UI. JARVIS provides two chat modes (General and Realtime with web search), streaming responses, text-to-speech, voice input, and learns from your personal data files. Everything runs on one server with one command.
+An intelligent AI assistant built with FastAPI, LangChain, Groq AI, and a modern glass-morphism web UI. N.A.T. (Natasha) provides two chat modes (General and Realtime with web search), streaming responses, text-to-speech, voice input, and learns from your personal data files. Everything runs on one server with one command.
 
 ---
 
@@ -8,15 +8,14 @@ An intelligent AI assistant built with FastAPI, LangChain, Groq AI, and a modern
 
 - [Quick Start](#quick-start)
 - [Features](#features)
-- [How It Works (Full Workflow)](#how-it-works-full-workflow)
+- [How It Works](#how-it-works)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [API Endpoints](#api-endpoints)
 - [Configuration](#configuration)
 - [Technologies Used](#technologies-used)
-- [Frontend Guide](#frontend-guide)
+- [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
-- [Developer](#developer)
 
 ---
 
@@ -52,10 +51,10 @@ TAVILY_API_KEY=your_tavily_api_key_here
 
 # Optional
 GROQ_MODEL=llama-3.3-70b-versatile
-ASSISTANT_NAME=Jarvis
-JARVIS_USER_TITLE=Sir
-TTS_VOICE=en-GB-RyanNeural
-TTS_RATE=+22%
+ASSISTANT_NAME=Natasha
+JARVIS_USER_TITLE=Boss
+TTS_VOICE=en-US-AriaNeural
+TTS_RATE=+0%
 ```
 
 4. **Start the server**:
@@ -76,14 +75,14 @@ That's it. The server hosts both the API and the frontend on port 8000.
 
 - **General Mode**: Pure LLM responses using Groq AI. Uses your learning data and conversation history as context. No internet access.
 - **Realtime Mode**: Searches the web via Tavily before answering. Smart query extraction converts messy conversational text into focused search queries. Uses advanced search depth with AI-synthesized answers.
+- **Intelligence Mode**: Analyze companies, industries, brands, or sectors with structured financial and market intelligence.
 
 ### Text-to-Speech (TTS)
 
 - Server-side TTS using `edge-tts` (Microsoft Edge's free cloud TTS, no API key needed).
 - Audio is generated on the server and streamed inline with text chunks via SSE.
-- Sentences are detected in real time as text streams in, converted to speech in background threads (ThreadPoolExecutor), and sent to the client as base64 MP3.
-- The client plays audio segments sequentially in a queue — speech starts as soon as the first sentence is ready, not after the full response.
-- Works on all devices including iOS (uses a persistent `<audio>` element with AudioContext unlock).
+- Sentences are detected in real time as text streams in, converted to speech in background threads.
+- The client plays audio segments sequentially in a queue.
 
 ### Voice Input
 
@@ -95,153 +94,50 @@ That's it. The server hosts both the API and the frontend on port 8000.
 - Put `.txt` files in `database/learning_data/` with any personal information, preferences, or context.
 - Past conversations are saved as JSON in `database/chats_data/`.
 - At startup, all learning data and past chats are chunked, embedded with HuggingFace sentence-transformers, and stored in a FAISS vector index.
-- For each question, only the most relevant chunks are retrieved (semantic search) and sent to the LLM. This keeps token usage bounded no matter how much data you add.
+- For each question, only the most relevant chunks are retrieved (semantic search) and sent to the LLM.
 
 ### Session Persistence
 
 - Conversations are saved to disk after each message and survive server restarts.
-- General and Realtime modes share the same session, so context carries over between modes.
+- General, Realtime, and Intelligence modes share the same session, so context carries over between modes.
 
 ### Multi-Key API Fallback
 
 - Configure multiple Groq API keys (`GROQ_API_KEY`, `GROQ_API_KEY_2`, `GROQ_API_KEY_3`, ...).
 - Primary-first: every request tries the first key. If it fails (rate limit, timeout), the next key is tried automatically.
-- Each key gets one retry for transient failures before falling back.
 
 ### Frontend
 
 - Dark glass-morphism UI with animated WebGL orb in the background.
 - The orb animates when the AI is speaking (TTS playing) and stays subtle when idle.
-- Responsive: works on desktop, tablets, and mobile (including iOS safe area handling).
+- Responsive: works on desktop, tablets, and mobile.
 - No build tools, no frameworks — vanilla HTML/CSS/JS.
 
 ---
 
-## How It Works (Full Workflow)
-
-This section explains the complete journey of a user's message from the moment they press Send to the moment they hear the AI speak.
+## How It Works
 
 ### Step 1: User Sends a Message
 
-The user types a question (or speaks it via voice input) and presses Send. The frontend (`script.js`) does the following:
+The user types a question (or speaks it via voice input) and presses Send. The frontend sends a POST request to the backend with `{ message, session_id, tts }`.
 
-1. Captures the text from the textarea.
-2. Adds the user's message bubble to the chat UI.
-3. Shows a typing indicator (three bouncing dots).
-4. If TTS is enabled, unlocks the audio context (required on iOS for programmatic playback).
-5. Sends a `POST` request to the backend with `{ message, session_id, tts }`.
+### Step 2: Backend Processing
 
-The endpoint depends on the mode:
-- **General**: `POST /chat/stream`
-- **Realtime**: `POST /chat/realtime/stream`
+FastAPI validates the request and routes it to the appropriate service based on the chat mode.
 
-### Step 2: Backend Receives the Request (app/main.py)
+### Step 3: Context Retrieval
 
-FastAPI validates the request body using the `ChatRequest` Pydantic model (checks message length 1-32,000 chars). The endpoint handler:
+The user's question is embedded using HuggingFace sentence-transformers. FAISS performs a nearest-neighbor search against the vector store to retrieve relevant context from learning data.
 
-1. Gets or creates a session via `ChatService.get_or_create_session()`.
-2. Calls `ChatService.process_message_stream()` (general) or `process_realtime_message_stream()` (realtime), which returns a chunk iterator.
-3. Wraps the iterator in `_stream_generator()` and returns a `StreamingResponse` with `media_type="text/event-stream"`.
+### Step 4: LLM Response
 
-### Step 3: Session Management (app/services/chat_service.py)
+- **General Mode**: Uses Groq AI with the retrieved context.
+- **Realtime Mode**: First extracts a search query, performs web search via Tavily, then uses Groq AI with search results.
+- **Intelligence Mode**: Analyzes companies, industries, or sectors with structured data.
 
-`ChatService` manages all conversation state:
+### Step 5: Streaming with TTS
 
-1. If no `session_id` is provided, generates a new UUID.
-2. If a `session_id` is provided, checks in-memory first, then tries loading from disk (`database/chats_data/chat_{id}.json`).
-3. Validates the session ID (no path traversal, max 255 chars).
-4. Adds the user's message to the session's message list.
-5. Formats conversation history into `(user, assistant)` pairs, capped at `MAX_CHAT_HISTORY_TURNS` (default 20) to keep the prompt within token limits.
-
-### Step 4: Context Retrieval (app/services/vector_store.py)
-
-Before generating a response, the system retrieves relevant context:
-
-1. The user's question is embedded into a vector using the HuggingFace sentence-transformers model (runs locally, no API key needed).
-2. FAISS performs a nearest-neighbor search against the vector store (which contains chunks from learning data `.txt` files and past conversations).
-3. The top 10 most similar chunks are returned.
-4. These chunks are escaped (curly braces doubled for LangChain) and added to the system message.
-
-### Step 5a: General Mode (app/services/groq_service.py)
-
-For general chat:
-
-1. `_build_prompt_and_messages()` assembles the system message:
-   - Base personality prompt (from `config.py`)
-   - Current date and time
-   - Retrieved context chunks from the vector store
-   - General mode addendum ("answer from your knowledge, no web search")
-2. The prompt is sent to Groq AI via LangChain's `ChatGroq` with streaming enabled.
-3. Tokens arrive one by one and are yielded as an iterator.
-4. If the first API key fails (rate limit, timeout), the system automatically tries the next key.
-
-### Step 5b: Realtime Mode (app/services/realtime_service.py)
-
-For realtime chat, three additional steps happen before calling Groq:
-
-1. **Query Extraction**: A fast LLM call (with `max_tokens=50`, `temperature=0`) converts the user's raw conversational text into a clean search query. Example: "tell me about that website I mentioned" becomes "Jarvis for Everyone website". It uses the last 3 conversation turns to resolve references like "that", "him", "it".
-
-2. **Tavily Web Search**: The clean query is sent to Tavily's advanced search API:
-   - `search_depth="advanced"` for thorough results
-   - `include_answer=True` so Tavily's AI synthesizes a direct answer
-   - Up to 7 results with relevance scores
-
-3. **Result Formatting**: Search results are structured with clear headers:
-   - AI-synthesized answer (marked as primary source)
-   - Individual sources with title, content, URL, and relevance score
-
-4. These results are injected into the system message before the Realtime mode addendum (which explicitly instructs the LLM to USE the search data).
-
-### Step 6: Streaming with Inline TTS (app/main.py - _stream_generator)
-
-The `_stream_generator` function is the core of the streaming + TTS pipeline:
-
-1. **Text chunks are yielded immediately** as SSE events (`data: {"chunk": "...", "done": false}`). The frontend displays them in real time — TTS never blocks text display.
-
-2. If TTS is enabled, the generator also:
-   a. Accumulates text in a buffer.
-   b. Splits the buffer into sentences at punctuation boundaries (`. ! ? , ; :`).
-   c. Merges short fragments to avoid choppy speech.
-   d. Submits each sentence to a `ThreadPoolExecutor` (4 workers) for background TTS generation via `edge-tts`.
-   e. Checks the front of the audio queue for completed TTS jobs and yields them as `data: {"audio": "<base64 MP3>"}` events — in order, without blocking.
-
-3. When the LLM stream ends, any remaining buffered text is flushed and all pending TTS futures are awaited (with a 15-second timeout per sentence).
-
-4. Final event: `data: {"chunk": "", "done": true, "session_id": "..."}`.
-
-### Step 7: Frontend Receives the Stream (frontend/script.js)
-
-The frontend reads the SSE stream with `fetch()` + `ReadableStream`:
-
-1. **Text chunks** (`data.chunk`): Appended to the message bubble in real time. A blinking cursor appears during streaming.
-2. **Audio events** (`data.audio`): Passed to `TTSPlayer.enqueue()`, which adds the base64 MP3 to a playback queue.
-3. **Done event** (`data.done`): Streaming is complete. The cursor is removed.
-
-### Step 8: TTS Playback (frontend/script.js - TTSPlayer)
-
-The `TTSPlayer` manages audio playback:
-
-1. `enqueue(base64Audio)` adds audio to the queue and starts `_playLoop()` if not already running.
-2. `_playLoop()` plays segments sequentially: converts base64 to a data URL, sets it as the `<audio>` element's source, plays it, and waits for `onended` before playing the next segment.
-3. When audio starts playing, the orb's `.speaking` class and WebGL animation are activated.
-4. When all segments finish (or the user mutes TTS), the orb returns to its idle state.
-
-### Step 9: Session Save (app/services/chat_service.py)
-
-After the stream completes:
-
-1. The full assistant response (accumulated from all chunks) is saved in the session.
-2. The session is written to `database/chats_data/chat_{id}.json`.
-3. During streaming, the session is also saved every 5 chunks for durability.
-
-### Step 10: Next Startup
-
-When the server restarts:
-
-1. All `.txt` files in `database/learning_data/` are loaded.
-2. All `.json` files in `database/chats_data/` (past conversations) are loaded.
-3. Everything is chunked, embedded, and indexed in the FAISS vector store.
-4. New conversations benefit from all previous context.
+The response is streamed via Server-Sent Events (SSE). If TTS is enabled, sentences are detected in real-time and converted to speech via edge-tts, streamed as base64 audio.
 
 ---
 
@@ -255,7 +151,6 @@ User (Browser)
 +--------------------------------------------------+
 |  FastAPI Application  (app/main.py)              |
 |  - CORS middleware                               |
-|  - Timing middleware (logs all requests)         |
 |  - _stream_generator (SSE + inline TTS)          |
 +--------------------------------------------------+
     |                           |
@@ -270,27 +165,19 @@ User (Browser)
     |
     v
 +------------------+   +------------------------+
-|  GroqService     |   |  RealtimeGroqService   |
-|  (groq_service)  |   |  (realtime_service)    |
-|  - General chat  |   |  - Query extraction    |
-|  - Multi-key     |   |  - Tavily web search   |
-|  - LangChain     |   |  - Extends GroqService |
+|  GroqService     |   |  RealtimeService      |
+|  (groq_service)  |   |  (realtime_service)   |
+|  - General chat |   |  - Query extraction    |
+|  - Multi-key    |   |  - Tavily web search   |
 +------------------+   +------------------------+
-    |                           |
-    v                           v
-+--------------------------------------------------+
-|  VectorStoreService  (vector_store.py)           |
-|  - FAISS index (learning data + past chats)      |
-|  - HuggingFace embeddings (local, no API key)    |
-|  - Semantic search: returns top-k chunks         |
-+--------------------------------------------------+
     |
     v
-+--------------------------------------------------+
-|  Groq Cloud API  (LLM inference)                 |
-|  - llama-3.3-70b-versatile (or configured model) |
-|  - Primary-first multi-key fallback              |
-+--------------------------------------------------+
++------------------+   +------------------------+
+| IntelligenceServ |   |  VectorStoreService   |
+| (intelligence)  |   |  (vector_store)       |
+| - Company       |   |  - FAISS index        |
+|   analysis      |   |  - HuggingFace embeds |
++------------------+   +------------------------+
 ```
 
 ---
@@ -298,37 +185,41 @@ User (Browser)
 ## Project Structure
 
 ```
-JARVIS/
-├── frontend/                    # Web UI (vanilla HTML/CSS/JS, no build tools)
+NATai/
+├── frontend/                    # Web UI (vanilla HTML/CSS/JS)
 │   ├── index.html               # Single-page app structure
-│   ├── style.css                # Dark glass-morphism theme, responsive
-│   ├── script.js                # Chat logic, SSE streaming, TTS player, voice input
-│   └── orb.js                   # WebGL animated orb renderer (GLSL shaders)
+│   ├── style.css                # Dark glass-morphism theme
+│   ├── script.js                # Chat logic, SSE streaming, TTS player
+│   └── orb.js                   # WebGL animated orb renderer
 │
 ├── app/                         # Backend (FastAPI)
 │   ├── __init__.py
-│   ├── main.py                  # FastAPI app, all endpoints, inline TTS, SSE streaming
-│   ├── models.py                # Pydantic models (ChatRequest, ChatResponse, etc.)
+│   ├── main.py                  # FastAPI app, all endpoints
+│   ├── models.py                # Pydantic models
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── chat_service.py      # Session management, message storage, disk persistence
-│   │   ├── groq_service.py      # General chat: LangChain + Groq LLM + multi-key fallback
-│   │   ├── realtime_service.py  # Realtime chat: query extraction + Tavily search + Groq
-│   │   └── vector_store.py      # FAISS vector index, embeddings, semantic retrieval
+│   │   ├── chat_service.py      # Session management
+│   │   ├── groq_service.py       # General chat with Groq
+│   │   ├── realtime_service.py   # Realtime chat with web search
+│   │   ├── intelligence_service.py  # Company/industry analysis
+│   │   ├── vector_store.py      # FAISS vector index
+│   │   └── memory_service.py     # Persistent memory
 │   └── utils/
 │       ├── __init__.py
-│       ├── retry.py             # Retry with exponential backoff (for API calls)
-│       └── time_info.py         # Current date/time for the system prompt
+│       ├── retry.py             # Retry with exponential backoff
+│       └── time_info.py         # Current date/time
 │
 ├── database/                    # Auto-created on first run
-│   ├── learning_data/           # Your .txt files (personal info, preferences, etc.)
-│   ├── chats_data/              # Saved conversations as JSON
+│   ├── learning_data/           # Your .txt files
+│   ├── chats_data/              # Saved conversations
 │   └── vector_store/            # FAISS index files
 │
-├── config.py                    # All settings: API keys, paths, system prompt, TTS config
-├── run.py                       # Entry point: python run.py
-├── requirements.txt             # Python dependencies
-├── .env                         # Your API keys (not committed to git)
+├── config.py                    # All settings
+├── run.py                       # Entry point
+├── requirements.txt              # Python dependencies
+├── Dockerfile                    # Docker build
+├── docker-compose.yml            # Docker Compose
+├── .env                         # Your API keys
 └── README.md                    # This file
 ```
 
@@ -342,13 +233,13 @@ General chat (non-streaming). Returns full response at once.
 ### POST `/chat/stream`
 General chat with streaming. Returns Server-Sent Events.
 
-### POST `/chat/realtime`
-Realtime chat (non-streaming). Searches the web first, then responds.
-
 ### POST `/chat/realtime/stream`
 Realtime chat with streaming. Web search + SSE streaming.
 
-**Request body (all chat endpoints):**
+### POST `/intelligence`
+Analyze companies, industries, brands, or sectors.
+
+**Request body:**
 ```json
 {
   "message": "What is Python?",
@@ -356,41 +247,18 @@ Realtime chat with streaming. Web search + SSE streaming.
   "tts": true
 }
 ```
-- `message` (required): 1-32,000 characters.
-- `session_id` (optional): omit to create a new session; include to continue an existing one.
-- `tts` (optional, default false): set to `true` to receive inline audio events in the stream.
-
-**SSE stream format:**
-```
-data: {"session_id": "uuid-here", "chunk": "", "done": false}
-data: {"chunk": "Hello", "done": false}
-data: {"chunk": ", how", "done": false}
-data: {"audio": "<base64 MP3>", "sentence": "Hello, how can I help?"}
-data: {"chunk": "", "done": true, "session_id": "uuid-here"}
-```
-
-**Non-streaming response:**
-```json
-{
-  "response": "Python is a high-level programming language...",
-  "session_id": "uuid-here"
-}
-```
-
-### GET `/chat/history/{session_id}`
-Returns all messages for a session.
 
 ### GET `/health`
 Health check. Returns status of all services.
 
-### POST `/tts`
-Standalone TTS endpoint. Send `{"text": "Hello"}`, receive streamed MP3 audio.
+### GET `/system/status`
+Returns system status including vector store, API availability, and active sessions.
 
-### GET `/`
-Redirects to `/app/` (the frontend).
+### GET `/memory`
+Get all persistent memories.
 
-### GET `/api`
-Returns list of available endpoints.
+### POST `/memory`
+Add a new persistent memory.
 
 ---
 
@@ -402,39 +270,22 @@ Returns list of available endpoints.
 |----------|----------|---------|-------------|
 | `GROQ_API_KEY` | Yes | - | Primary Groq API key |
 | `GROQ_API_KEY_2`, `_3`, ... | No | - | Additional keys for fallback |
-| `TAVILY_API_KEY` | No | - | Tavily search API key (for Realtime mode) |
+| `TAVILY_API_KEY` | No | - | Tavily search API key |
+| `ALPHA_VANTAGE_KEY` | No | - | Alpha Vantage for financial data |
+| `FMP_KEY` | No | - | Financial Modeling Prep |
+| `NEWS_API_KEY` | No | - | News API |
 | `GROQ_MODEL` | No | `llama-3.3-70b-versatile` | LLM model name |
-| `ASSISTANT_NAME` | No | `Jarvis` | Assistant's name |
-| `JARVIS_USER_TITLE` | No | - | How to address the user (e.g. "Sir") |
-| `TTS_VOICE` | No | `en-GB-RyanNeural` | Edge TTS voice (run `edge-tts --list-voices` to see all) |
-| `TTS_RATE` | No | `+22%` | Speech speed adjustment |
-
-### System Prompt
-
-The assistant's personality is defined in `config.py`. Key sections:
-- **Role**: conversational face of the system; does not claim to have completed actions unless the result is visible
-- **Answering Quality**: instructed to be specific, use context/search results, never give vague answers
-- **Tone**: warm, intelligent, concise, witty
-- **Formatting**: no asterisks, no emojis, no markdown, plain text only
+| `ASSISTANT_NAME` | No | `Natasha` | Assistant's name |
+| `JARVIS_USER_TITLE` | No | `Boss` | How to address the user |
+| `TTS_VOICE` | No | `en-US-AriaNeural` | Edge TTS voice |
+| `TTS_RATE` | No | `+0%` | Speech speed |
 
 ### Learning Data
 
 Add `.txt` files to `database/learning_data/`:
 - Files are loaded and indexed at startup.
-- Only relevant chunks are sent to the LLM per question (not the full text).
+- Only relevant chunks are sent to the LLM per question.
 - Restart the server after adding new files.
-
-### Multiple Groq API Keys
-
-You can use **multiple Groq API keys** for automatic fallback. Set `GROQ_API_KEY` (required) and optionally `GROQ_API_KEY_2`, `GROQ_API_KEY_3`, etc. in your `.env`:
-
-```env
-GROQ_API_KEY=first_key
-GROQ_API_KEY_2=second_key
-GROQ_API_KEY_3=third_key
-```
-
-Every request tries the first key first. If it fails (rate limit, timeout, or error), the next key is tried automatically. Each key has its own daily limit on Groq's free tier, so multiple keys give you more capacity.
 
 ---
 
@@ -444,54 +295,43 @@ Every request tries the first key first. If it fails (rate limit, timeout, or er
 | Technology | Purpose |
 |-----------|---------|
 | FastAPI | Web framework, async endpoints, SSE streaming |
-| LangChain | LLM orchestration, prompt templates, message formatting |
-| Groq AI | LLM inference (Llama 3.3 70B, extremely fast) |
-| Tavily | AI-optimized web search with answer synthesis |
-| FAISS | Vector similarity search for context retrieval |
-| HuggingFace | Local embeddings (sentence-transformers/all-MiniLM-L6-v2) |
-| edge-tts | Server-side text-to-speech (Microsoft Edge, free, no API key) |
+| LangChain | LLM orchestration, prompt templates |
+| Groq AI | LLM inference (Llama 3.3 70B) |
+| Tavily | AI-optimized web search |
+| FAISS | Vector similarity search |
+| HuggingFace | Local embeddings (sentence-transformers) |
+| edge-tts | Server-side text-to-speech |
 | Pydantic | Request/response validation |
 | Uvicorn | ASGI server |
 
 ### Frontend
 | Technology | Purpose |
 |-----------|---------|
-| Vanilla JS | Chat logic, SSE streaming, TTS playback queue |
-| WebGL/GLSL | Animated orb (simplex noise, procedural lighting) |
+| Vanilla JS | Chat logic, SSE streaming, TTS playback |
+| WebGL/GLSL | Animated orb |
 | Web Speech API | Browser-native speech-to-text |
-| CSS Glass-morphism | Dark translucent panels with backdrop blur |
-| Poppins (Google Fonts) | Typography |
+| CSS Glass-morphism | Dark translucent panels |
 
 ---
 
-## Frontend Guide
+## Deployment
 
-### Modes
+### Docker (Recommended)
 
-- **General**: Click "General" in the header. Uses the LLM's knowledge + your learning data. No internet.
-- **Realtime**: Click "Realtime" in the header. Searches the web first, then answers with fresh information.
+```bash
+# Build and run with Docker Compose
+docker-compose up --build -d
+```
 
-### TTS (Text-to-Speech)
+### Manual Deployment
 
-- Click the speaker icon to enable/disable TTS.
-- When enabled, the AI speaks its response as it streams in.
-- Click again to mute mid-speech (stops immediately, orb returns to idle).
+1. **Railway** - Connect GitHub repo, set environment variables, auto-deploys
+2. **Render** - Connect repo, set build/start commands
+3. **Fly.io** - `fly launch`, `fly deploy`
+4. **Heroku** - Git push with Python buildpack
+5. **DigitalOcean** - Connect repo, configure app platform
 
-### Voice Input
-
-- Click the microphone icon to start listening.
-- Speak your question. It auto-sends when you finish.
-- Click again to cancel.
-
-### Orb Animation
-
-- **Idle**: Subtle glow (35% opacity), slowly rotating.
-- **Speaking (TTS active)**: Full brightness, pulsing scale animation.
-- The orb only animates when TTS audio is playing, not during text streaming.
-
-### Quick Chips
-
-On the welcome screen, click any chip ("What can you do?", "Open YouTube", etc.) to send a preset message.
+See the platform documentation for detailed deployment steps.
 
 ---
 
@@ -499,72 +339,22 @@ On the welcome screen, click any chip ("What can you do?", "Open YouTube", etc.)
 
 ### Server won't start
 - Ensure `GROQ_API_KEY` is set in `.env`.
-- Run `pip install -r requirements.txt` to install all dependencies.
+- Run `pip install -r requirements.txt`.
 - Check that port 8000 is not in use.
 
 ### "Offline" status in the UI
-- The server is not running. Start it with `python run.py`.
-- Check the terminal for error messages.
+- The server is not running. Start with `python run.py`.
 
 ### Realtime mode gives generic answers
-- Ensure `TAVILY_API_KEY` is set in `.env` and is valid.
-- Check the server logs for `[TAVILY]` entries to see if search is working.
-- The query extraction LLM call should appear as `[REALTIME] Query extraction:` in logs.
+- Ensure `TAVILY_API_KEY` is set in `.env`.
 
 ### TTS not working
-- Make sure TTS is enabled (speaker icon should be highlighted purple).
-- On iOS: TTS requires a user interaction first (tap the speaker button before sending a message).
-- Check server logs for `[TTS-INLINE]` errors.
+- Make sure TTS is enabled (speaker icon highlighted).
+- Check server logs for errors.
 
 ### Vector store errors
-- Delete `database/vector_store/` and restart — the index rebuilds automatically.
-- Check that `database/` directories exist and are writable.
-
-### Template variable errors
-- Likely caused by `{` or `}` in learning data files. The system escapes these automatically, but if you see errors, check your `.txt` files.
+- Delete `database/vector_store/` and restart.
 
 ---
-
-## Performance
-
-The server logs `[TIMING]` entries for every operation:
-
-| Log Entry | What It Measures |
-|-----------|-----------------|
-| `session_get_or_create` | Session lookup (memory/disk/new) |
-| `vector_db` | Vector store retrieval |
-| `tavily_search` | Web search (Realtime only) |
-| `groq_api` | Full Groq API call |
-| `first_chunk` | Time to first streaming token |
-| `groq_stream_total` | Total stream duration + chunk count |
-| `save_session_json` | Session save to disk |
-
-Typical latencies:
-- General mode first token: 0.3-1s
-- Realtime mode first token: 2-5s (includes query extraction + web search)
-- TTS first audio: ~1s after first sentence completes
-
----
-
-## Security Notes
-
-- Session IDs are validated against path traversal (`..`, `/`, `\`).
-- API keys are stored in `.env` (never in code).
-- CORS allows all origins (`*`) since this is a single-user server.
-- No authentication — add it if deploying for multiple users.
-
----
-
-## Developer
-
-**J.A.R.V.I.S** was developed by **Shreshth Kaushik**, an online educator, businessman, and programmer known for simplifying complex topics with innovative teaching methods.
-
-- **Website:** [theshreshthkaushik.com](https://www.theshreshthkaushik.com/)
-- **Instagram:** [@theshreshthkaushik](https://www.instagram.com/theshreshthkaushik/)
-- **Telegram:** [t.me/theshreshthkaushik](https://t.me/theshreshthkaushik)
-- **YouTube:** [Shreshth Kaushik](https://www.youtube.com/channel/UC7A5u12yVIZaCO_uXnNhc5g)
-- **Jarvis for Everyone:** [jarvis4everyone.com](https://jarvis4everyone.com)
-
-> For the latest version of Jarvis and updates, visit **[Jarvis for Everyone](https://jarvis4everyone.com)**.
 
 **Start chatting:** `python run.py` then open http://localhost:8000
