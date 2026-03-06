@@ -189,41 +189,71 @@ function initSpeech() {
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+        console.log('Speech recognition started');
+        isListening = true;
+        micBtn.classList.add('listening');
+    };
 
     recognition.onresult = e => {
-        const result = e.results[e.results.length - 1];
-        const text = result[0].transcript;
-        messageInput.value = text;
-        autoResizeInput();
-        if (result.isFinal) {
+        let text = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            text += e.results[i][0].transcript;
+        }
+        if (text) {
+            messageInput.value = text;
+            autoResizeInput();
+            console.log('Speech recognized:', text);
+        }
+        if (e.results[e.results.length - 1].isFinal) {
             stopListening();
-            if (text.trim()) sendMessage(text.trim());
+            const finalText = messageInput.value.trim();
+            if (finalText) {
+                sendMessage(finalText);
+            }
         }
     };
     
     recognition.onerror = e => {
         console.error('Speech recognition error:', e.error);
         if (e.error === 'not-allowed') {
-            micBtn.title = 'Microphone permission denied';
             alert('Please allow microphone access to use voice input.');
+        } else if (e.error === 'no-speech') {
+            console.log('No speech detected, try again');
         }
         stopListening();
     };
     
-    recognition.onend = () => { if (isListening) stopListening(); };
+    recognition.onend = () => {
+        console.log('Speech recognition ended');
+        stopListening();
+    };
 }
 
 function startListening() {
     if (!recognition || isStreaming) return;
-    isListening = true;
-    micBtn.classList.add('listening');
-    try { recognition.start(); } catch (_) {}
+    
+    try {
+        isListening = true;
+        micBtn.classList.add('listening');
+        messageInput.value = '';
+        recognition.start();
+    } catch (e) {
+        console.error('Error starting recognition:', e);
+        stopListening();
+    }
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
-    try { recognition.stop(); } catch (_) {}
+    try { 
+        if (recognition) recognition.stop(); 
+    } catch (e) {
+        // Ignore errors when stopping
+    }
 }
 
 async function checkHealth() {
