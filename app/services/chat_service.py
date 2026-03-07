@@ -1,8 +1,12 @@
+"""
+Chat Service for N.A.T. AI Assistant
+Handles chat session persistence, history management, and business logging.
+"""
+import os
 import json
 import uuid
-import os
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 from config import config

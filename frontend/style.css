@@ -43,32 +43,48 @@
    ================================================================ */
 :root {
     /* ---- Backgrounds ---- */
-    --bg: #050510;                                /* Page-level dark background */
-    --glass-bg: rgba(10, 10, 28, 0.72);          /* Semi-transparent fill for glass panels (header, input bar) */
-    --glass-border: rgba(255, 255, 255, 0.06);   /* Subtle white border that outlines glass panels */
-    --glass-hover: rgba(255, 255, 255, 0.10);    /* Slightly brighter fill on hover */
+    --bg: #050510;
+    /* Page-level dark background */
+    --glass-bg: rgba(10, 10, 28, 0.72);
+    /* Semi-transparent fill for glass panels (header, input bar) */
+    --glass-border: rgba(255, 255, 255, 0.06);
+    /* Subtle white border that outlines glass panels */
+    --glass-hover: rgba(255, 255, 255, 0.10);
+    /* Slightly brighter fill on hover */
 
     /* ---- Accent colours ---- */
-    --accent: #7c6aef;                            /* Primary purple accent — buttons, highlights, glows */
-    --accent-glow: rgba(124, 106, 239, 0.35);    /* Soft purple used for box-shadows / focus rings */
-    --accent-secondary: #4ecdc4;                  /* Teal complement — used in gradients alongside --accent */
+    --accent: #7c6aef;
+    /* Primary purple accent — buttons, highlights, glows */
+    --accent-glow: rgba(124, 106, 239, 0.35);
+    /* Soft purple used for box-shadows / focus rings */
+    --accent-secondary: #4ecdc4;
+    /* Teal complement — used in gradients alongside --accent */
 
     /* ---- Text ---- */
-    --text: rgba(255, 255, 255, 0.93);            /* Primary readable text — near-white */
-    --text-dim: rgba(255, 255, 255, 0.50);        /* Secondary / de-emphasised text */
-    --text-muted: rgba(255, 255, 255, 0.28);      /* Tertiary — labels, meta info, placeholders */
+    --text: rgba(255, 255, 255, 0.93);
+    /* Primary readable text — near-white */
+    --text-dim: rgba(255, 255, 255, 0.50);
+    /* Secondary / de-emphasised text */
+    --text-muted: rgba(255, 255, 255, 0.28);
+    /* Tertiary — labels, meta info, placeholders */
 
     /* ---- Semantic colours ---- */
-    --danger: #ff6b6b;                            /* Destructive / recording state (mic listening) */
-    --success: #51cf66;                           /* Online status, success feedback */
+    --danger: #ff6b6b;
+    /* Destructive / recording state (mic listening) */
+    --success: #51cf66;
+    /* Online status, success feedback */
 
     /* ---- Border radii ---- */
-    --radius: 16px;                               /* Large radius — panels, bubbles */
-    --radius-sm: 10px;                            /* Medium radius — buttons, avatars */
-    --radius-xs: 6px;                             /* Small radius — notched bubble corners */
+    --radius: 16px;
+    /* Large radius — panels, bubbles */
+    --radius-sm: 10px;
+    /* Medium radius — buttons, avatars */
+    --radius-xs: 6px;
+    /* Small radius — notched bubble corners */
 
     /* ---- Layout ---- */
-    --header-h: 60px;                             /* Fixed header height — used to reserve space */
+    --header-h: 60px;
+    /* Fixed header height — used to reserve space */
 
     /* ---- Motion ---- */
     --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -89,23 +105,45 @@
    padding/border count inside the declared width/height — the most
    intuitive model for layout work.
    ================================================================ */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 /* Full viewport height; overflow hidden because the chat area
    manages its own scrolling internally. */
-html, body { height: 100%; overflow: hidden; }
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+}
 
 body {
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
-    -webkit-font-smoothing: antialiased;          /* Smoother font rendering on macOS/iOS WebKit */
-    -webkit-tap-highlight-color: transparent;      /* Removes the blue tap flash on mobile WebKit */
+    -webkit-font-smoothing: antialiased;
+    /* Smoother font rendering on macOS/iOS WebKit */
+    -webkit-tap-highlight-color: transparent;
+    /* Removes the blue tap flash on mobile WebKit */
 }
 
 /* Reset native button / textarea styling so we control everything */
-button { font-family: var(--font); cursor: pointer; border: none; background: none; color: inherit; }
-textarea { font-family: var(--font); color: var(--text); }
+button {
+    font-family: var(--font);
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+}
+
+textarea {
+    font-family: var(--font);
+    color: var(--text);
+}
 
 
 /* ================================================================
@@ -142,12 +180,16 @@ textarea { font-family: var(--font); color: var(--text); }
    browsers that don't understand `dvh`.
    ================================================================ */
 .app {
-    position: relative;
     display: flex;
     flex-direction: column;
-    height: 100vh;              /* Fallback for browsers without dvh support */
-    height: 100dvh;             /* Preferred: adjusts for mobile browser chrome */
+    height: 100vh;
+    /* Fallback for browsers without dvh support */
+    height: 100dvh;
+    /* Preferred: adjusts for mobile browser chrome */
+    width: 100vw;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 
@@ -224,10 +266,22 @@ textarea { font-family: var(--font); color: var(--text); }
     flex-shrink: 0;
 }
 
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+}
+
 /* HEADER LEFT — Logo + Tagline
    `align-items: baseline` aligns the tall logo text and the
    smaller tagline along their text baselines. */
-.header-left { display: flex; align-items: baseline; gap: 10px; }
+.header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
 
 /* LOGO
    Gradient text effect: a linear gradient is painted as the
@@ -275,23 +329,31 @@ textarea { font-family: var(--font); color: var(--text); }
     padding: 3px;
     gap: 2px;
 }
+
 .mode-slider {
     position: absolute;
     top: 3px;
     left: 3px;
-    width: calc(50% - 4px);           /* Exactly covers one button */
-    height: calc(100% - 6px);         /* Full height minus top+bottom padding */
+    width: calc(50% - 4px);
+    /* Exactly covers one button */
+    height: calc(100% - 6px);
+    /* Full height minus top+bottom padding */
     background: var(--accent);
     border-radius: 10px;
     transition: transform var(--transition);
-    opacity: 0.18;                     /* Tinted, not solid — keeps it subtle */
+    opacity: 0.18;
+    /* Tinted, not solid — keeps it subtle */
 }
+
 .mode-slider.right {
-    transform: translateX(calc(100% + 2px)); /* Slide to the second button */
+    transform: translateX(calc(100% + 2px));
+    /* Slide to the second button */
 }
+
 .mode-btn {
     position: relative;
-    z-index: 1;                        /* Above the slider background */
+    z-index: 1;
+    /* Above the slider background */
     display: flex;
     align-items: center;
     gap: 6px;
@@ -301,16 +363,34 @@ textarea { font-family: var(--font); color: var(--text); }
     border-radius: 10px;
     color: var(--text-dim);
     transition: color var(--transition);
-    white-space: nowrap;               /* Prevents label from wrapping at narrow widths */
+    white-space: nowrap;
+    /* Prevents label from wrapping at narrow widths */
 }
-.mode-btn.active { color: var(--text); }          /* Active mode gets full-white text */
-.mode-btn svg { opacity: 0.7; }                   /* Dim icon by default */
-.mode-btn.active svg { opacity: 1; }              /* Full opacity when active */
+
+.mode-btn.active {
+    color: var(--text);
+}
+
+/* Active mode gets full-white text */
+.mode-btn svg {
+    opacity: 0.7;
+}
+
+/* Dim icon by default */
+.mode-btn.active svg {
+    opacity: 1;
+}
+
+/* Full opacity when active */
 
 /* ----------------------------------------------------------------
    HEADER RIGHT — Status Badge & Utility Buttons
    ---------------------------------------------------------------- */
-.header-right { display: flex; align-items: center; gap: 10px; }
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
 /* STATUS BADGE — shows a coloured dot + "Online" / "Offline" label */
 .status-badge {
@@ -333,6 +413,7 @@ textarea { font-family: var(--font); color: var(--text); }
     box-shadow: 0 0 6px var(--success);
     animation: pulse-dot 2s ease-in-out infinite;
 }
+
 /* When the server is unreachable, switch to red and stop pulsing */
 .status-dot.offline {
     background: var(--danger);
@@ -353,6 +434,7 @@ textarea { font-family: var(--font); color: var(--text); }
     border: 1px solid var(--glass-border);
     transition: background var(--transition), border-color var(--transition);
 }
+
 .btn-icon:hover {
     background: var(--glass-hover);
     border-color: rgba(255, 255, 255, 0.14);
@@ -372,19 +454,25 @@ textarea { font-family: var(--font); color: var(--text); }
 .chat-area {
     position: relative;
     z-index: 5;
-    flex: 1;
-    overflow: hidden;           /* Outer container clips; inner scrolls */
+    flex-grow: 1;
+    /* Take up all remaining space in the middle */
+    overflow-y: auto;
+    /* Scroll vertically when messages overflow */
     display: flex;
     flex-direction: column;
 }
+
 .chat-messages {
     flex: 1;
-    overflow-y: auto;           /* Vertical scroll when messages overflow */
+    overflow-y: auto;
+    /* Vertical scroll when messages overflow */
     overflow-x: hidden;
     padding: 20px 20px;
     display: flex;
-    flex-direction: column;     /* Messages stack top→bottom */
-    gap: 6px;                   /* Consistent spacing between messages */
+    flex-direction: column;
+    /* Messages stack top→bottom */
+    gap: 6px;
+    /* Consistent spacing between messages */
     scroll-behavior: smooth;
 }
 
@@ -407,11 +495,13 @@ textarea { font-family: var(--font); color: var(--text); }
     padding: 40px 20px;
     animation: fadeIn 0.6s ease;
 }
+
 .welcome-icon {
     color: var(--accent);
     opacity: 0.5;
     margin-bottom: 6px;
 }
+
 /* Same gradient-text technique as the logo */
 .welcome-title {
     font-size: 1.7rem;
@@ -421,6 +511,7 @@ textarea { font-family: var(--font); color: var(--text); }
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
+
 .welcome-sub {
     font-size: 0.9rem;
     color: var(--text-dim);
@@ -430,26 +521,31 @@ textarea { font-family: var(--font); color: var(--text); }
 /* SUGGESTION CHIPS — quick-tap prompts */
 .welcome-chips {
     display: flex;
-    flex-wrap: wrap;            /* Wraps to multiple rows on narrow screens */
+    flex-wrap: wrap;
+    /* Wraps to multiple rows on narrow screens */
     justify-content: center;
     gap: 8px;
     margin-top: 18px;
 }
+
 .chip {
     padding: 8px 18px;
     font-size: 0.76rem;
     font-weight: 400;
-    border-radius: 20px;       /* Fully rounded pill shape */
+    border-radius: 20px;
+    /* Fully rounded pill shape */
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--glass-border);
     color: var(--text-dim);
     transition: all var(--transition);
 }
+
 .chip:hover {
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);
-    transform: translateY(-1px);  /* Subtle "lift" effect on hover */
+    transform: translateY(-1px);
+    /* Subtle "lift" effect on hover */
 }
 
 
@@ -473,9 +569,15 @@ textarea { font-family: var(--font); color: var(--text); }
     max-width: 760px;
     width: 100%;
     margin: 0 auto;
-    animation: msgIn 0.3s ease;  /* Slide-up entrance for each new message */
+    animation: msgIn 0.3s ease;
+    /* Slide-up entrance for each new message */
 }
-.message.user { flex-direction: row-reverse; } /* Avatar on the right for user */
+
+.message.user {
+    flex-direction: row-reverse;
+}
+
+/* Avatar on the right for user */
 
 /* MESSAGE AVATAR — small icon square beside each bubble */
 .msg-avatar {
@@ -486,19 +588,24 @@ textarea { font-family: var(--font); color: var(--text); }
     place-items: center;
     font-size: 0.7rem;
     font-weight: 600;
-    flex-shrink: 0;             /* Never let the avatar shrink */
-    margin-top: 4px;            /* Align with the first line of text */
+    flex-shrink: 0;
+    /* Never let the avatar shrink */
+    margin-top: 4px;
+    /* Align with the first line of text */
 }
+
 /* SVG icon inside avatar — sized to fit the circle, inherits color from parent */
 .msg-avatar .msg-avatar-icon {
     width: 18px;
     height: 18px;
 }
+
 /* Assistant avatar: purple→teal gradient to match the brand */
 .message.assistant .msg-avatar {
     background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
     color: #fff;
 }
+
 /* User avatar: neutral dark chip */
 .message.user .msg-avatar {
     background: rgba(255, 255, 255, 0.08);
@@ -520,22 +627,28 @@ textarea { font-family: var(--font); color: var(--text); }
     padding: 11px 15px;
     border-radius: var(--radius);
     font-size: 0.87rem;
-    line-height: 1.65;           /* Generous line-height for readability */
+    line-height: 1.65;
+    /* Generous line-height for readability */
     font-weight: 400;
     word-wrap: break-word;
-    white-space: pre-wrap;       /* Preserves newlines from the AI response */
+    white-space: pre-wrap;
+    /* Preserves newlines from the AI response */
 }
+
 /* Assistant bubble: neutral grey-white tint, notch top-left */
 .message.assistant .msg-content {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-top-left-radius: var(--radius-xs);     /* Notch pointing toward avatar */
+    border-top-left-radius: var(--radius-xs);
+    /* Notch pointing toward avatar */
 }
+
 /* User bubble: purple-tinted, notch top-right */
 .message.user .msg-content {
     background: rgba(124, 106, 239, 0.13);
     border: 1px solid rgba(124, 106, 239, 0.16);
-    border-top-right-radius: var(--radius-xs);    /* Notch pointing toward avatar */
+    border-top-right-radius: var(--radius-xs);
+    /* Notch pointing toward avatar */
 }
 
 /* MSG-LABEL — tiny "JARVIS" / "You" text above the bubble */
@@ -545,7 +658,12 @@ textarea { font-family: var(--font); color: var(--text); }
     color: var(--text-muted);
     padding: 0 4px;
 }
-.message.user .msg-label { text-align: right; }  /* Right-align label for user */
+
+.message.user .msg-label {
+    text-align: right;
+}
+
+/* Right-align label for user */
 
 /* ----------------------------------------------------------------
    TYPING INDICATOR — Three Bouncing Dots
@@ -559,6 +677,7 @@ textarea { font-family: var(--font); color: var(--text); }
     gap: 4px;
     padding: 4px 0;
 }
+
 .typing-dots span {
     width: 6px;
     height: 6px;
@@ -566,8 +685,17 @@ textarea { font-family: var(--font); color: var(--text); }
     background: var(--text-dim);
     animation: dotBounce 1.2s ease-in-out infinite;
 }
-.typing-dots span:nth-child(2) { animation-delay: 0.15s; }  /* Second dot lags slightly */
-.typing-dots span:nth-child(3) { animation-delay: 0.3s; }   /* Third dot lags more */
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+/* Second dot lags slightly */
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+/* Third dot lags more */
 
 /* STREAMING CURSOR — blinking pipe character appended while the AI
    streams its response token-by-token. */
@@ -595,9 +723,11 @@ textarea { font-family: var(--font); color: var(--text); }
 .input-bar {
     position: relative;
     z-index: 10;
+    width: 100%;
     padding: 10px 20px 10px;
     padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
-    border-radius: var(--radius) var(--radius) 0 0;  /* Top corners rounded */
+    border-radius: var(--radius) var(--radius) 0 0;
+    /* Top corners rounded */
     border-bottom: none;
     flex-shrink: 0;
 }
@@ -615,6 +745,7 @@ textarea { font-family: var(--font); color: var(--text); }
     padding: 5px 5px 5px 14px;
     transition: border-color var(--transition), box-shadow var(--transition);
 }
+
 /* Focus ring: purple border + subtle outer glow when typing */
 .input-wrapper:focus-within {
     border-color: rgba(124, 106, 239, 0.35);
@@ -636,13 +767,17 @@ textarea { font-family: var(--font); color: var(--text); }
     max-height: 120px;
     color: var(--text);
 }
-.input-wrapper textarea::placeholder { color: var(--text-muted); }
+
+.input-wrapper textarea::placeholder {
+    color: var(--text-muted);
+}
 
 /* ACTION BUTTONS ROW — sits to the right of the textarea */
 .input-actions {
     display: flex;
     gap: 6px;
-    padding-bottom: 2px;       /* Micro-nudge to visually centre with one-line textarea */
+    padding-bottom: 2px;
+    /* Micro-nudge to visually centre with one-line textarea */
     flex-shrink: 0;
 }
 
@@ -658,7 +793,8 @@ textarea { font-family: var(--font); color: var(--text); }
     place-items: center;
     width: 38px;
     height: 38px;
-    min-width: 38px;            /* Prevents flex from shrinking the button */
+    min-width: 38px;
+    /* Prevents flex from shrinking the button */
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -666,14 +802,18 @@ textarea { font-family: var(--font); color: var(--text); }
     color: var(--text-dim);
     flex-shrink: 0;
 }
+
 .action-btn:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.16);
     color: var(--text);
-    transform: translateY(-1px);  /* Lift effect */
+    transform: translateY(-1px);
+    /* Lift effect */
 }
+
 .action-btn:active {
-    transform: translateY(0);      /* Press-down snap back */
+    transform: translateY(0);
+    /* Press-down snap back */
 }
 
 /* ----------------------------------------------------------------
@@ -687,13 +827,18 @@ textarea { font-family: var(--font); color: var(--text); }
     background: var(--accent) !important;
     border-color: var(--accent) !important;
     color: #fff !important;
-    box-shadow: 0 2px 8px rgba(124, 106, 239, 0.25);  /* Purple underglow */
+    box-shadow: 0 2px 8px rgba(124, 106, 239, 0.25);
+    /* Purple underglow */
 }
+
 .send-btn:hover {
-    background: #6a58e0 !important;       /* Slightly darker purple on hover */
+    background: #6a58e0 !important;
+    /* Slightly darker purple on hover */
     border-color: #6a58e0 !important;
-    box-shadow: 0 4px 14px rgba(124, 106, 239, 0.35); /* Stronger glow */
+    box-shadow: 0 4px 14px rgba(124, 106, 239, 0.35);
+    /* Stronger glow */
 }
+
 /* Disabled state: greyed out, no glow, no cursor, no lift */
 .send-btn:disabled {
     opacity: 0.4;
@@ -712,14 +857,28 @@ textarea { font-family: var(--font); color: var(--text); }
    colour text, plus a pulsing red ring animation (micPulse) to
    convey "recording in progress".
    ---------------------------------------------------------------- */
-.mic-btn .mic-icon-active { display: none; }           /* Hidden when NOT listening */
-.mic-btn.listening .mic-icon { display: none; }        /* Hide default icon */
-.mic-btn.listening .mic-icon-active { display: block; } /* Show active icon */
+.mic-btn .mic-icon-active {
+    display: none;
+}
+
+/* Hidden when NOT listening */
+.mic-btn.listening .mic-icon {
+    display: none;
+}
+
+/* Hide default icon */
+.mic-btn.listening .mic-icon-active {
+    display: block;
+}
+
+/* Show active icon */
 .mic-btn.listening {
-    background: rgba(255, 107, 107, 0.18);             /* Red-tinted fill */
+    background: rgba(255, 107, 107, 0.18);
+    /* Red-tinted fill */
     border-color: rgba(255, 107, 107, 0.3);
     color: var(--danger);
-    animation: micPulse 1.5s ease-in-out infinite;     /* Expanding red ring */
+    animation: micPulse 1.5s ease-in-out infinite;
+    /* Expanding red ring */
 }
 
 /* ----------------------------------------------------------------
@@ -732,16 +891,31 @@ textarea { font-family: var(--font); color: var(--text); }
    SPEAKING (.tts-speaking): TTS is currently playing audio —
      pulsing purple ring (ttsPulse) for visual feedback.
    ---------------------------------------------------------------- */
-.tts-btn .tts-icon-on { display: none; }              /* Hidden when TTS is off */
-.tts-btn.tts-active .tts-icon-off { display: none; }  /* Hide "off" icon */
-.tts-btn.tts-active .tts-icon-on { display: block; }  /* Show "on" icon */
+.tts-btn .tts-icon-on {
+    display: none;
+}
+
+/* Hidden when TTS is off */
+.tts-btn.tts-active .tts-icon-off {
+    display: none;
+}
+
+/* Hide "off" icon */
+.tts-btn.tts-active .tts-icon-on {
+    display: block;
+}
+
+/* Show "on" icon */
 .tts-btn.tts-active {
-    background: rgba(124, 106, 239, 0.18);            /* Purple-tinted fill */
+    background: rgba(124, 106, 239, 0.18);
+    /* Purple-tinted fill */
     border-color: rgba(124, 106, 239, 0.3);
     color: var(--accent);
 }
+
 .tts-btn.tts-speaking {
-    animation: ttsPulse 1.5s ease-in-out infinite;     /* Expanding purple ring */
+    animation: ttsPulse 1.5s ease-in-out infinite;
+    /* Expanding purple ring */
 }
 
 /* INPUT META — small row below the input showing mode label + hints */
@@ -753,7 +927,10 @@ textarea { font-family: var(--font); color: var(--text); }
     font-size: 0.66rem;
     color: var(--text-muted);
 }
-.mode-label { font-weight: 500; }
+
+.mode-label {
+    font-weight: 500;
+}
 
 
 /* ================================================================
@@ -780,9 +957,11 @@ textarea { font-family: var(--font); color: var(--text); }
     transform: translateX(100%);
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .search-results-widget.open {
     transform: translateX(0);
 }
+
 .search-results-header {
     display: flex;
     align-items: center;
@@ -791,6 +970,7 @@ textarea { font-family: var(--font); color: var(--text); }
     border-bottom: 1px solid var(--glass-border);
     flex-shrink: 0;
 }
+
 .search-results-title {
     font-size: 0.9rem;
     font-weight: 600;
@@ -800,6 +980,7 @@ textarea { font-family: var(--font); color: var(--text); }
     gap: 8px;
     min-width: 0;
 }
+
 .search-results-title::before {
     content: '';
     width: 8px;
@@ -810,6 +991,7 @@ textarea { font-family: var(--font); color: var(--text); }
     animation: pulse-dot 2s ease-in-out infinite;
     flex-shrink: 0;
 }
+
 .search-results-close {
     display: grid;
     place-items: center;
@@ -823,10 +1005,12 @@ textarea { font-family: var(--font); color: var(--text); }
     transition: all var(--transition);
     flex-shrink: 0;
 }
+
 .search-results-close:hover {
     background: rgba(255, 255, 255, 0.12);
     color: var(--text);
 }
+
 .search-results-query {
     padding: 12px 16px;
     font-size: 0.75rem;
@@ -838,6 +1022,7 @@ textarea { font-family: var(--font); color: var(--text); }
     overflow-wrap: break-word;
     word-break: break-word;
 }
+
 .search-results-answer {
     padding: 14px 16px;
     font-size: 0.85rem;
@@ -853,6 +1038,7 @@ textarea { font-family: var(--font); color: var(--text); }
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
+
 .search-results-list {
     flex: 1;
     min-height: 0;
@@ -864,6 +1050,7 @@ textarea { font-family: var(--font); color: var(--text); }
     gap: 12px;
     scroll-behavior: smooth;
 }
+
 .search-result-card {
     padding: 12px 14px;
     border-radius: var(--radius-sm);
@@ -875,10 +1062,12 @@ textarea { font-family: var(--font); color: var(--text); }
     flex-direction: column;
     gap: 6px;
 }
+
 .search-result-card:hover {
     background: rgba(255, 255, 255, 0.07);
     border-color: rgba(255, 255, 255, 0.1);
 }
+
 .search-result-card .card-title {
     font-size: 0.8rem;
     font-weight: 600;
@@ -888,6 +1077,7 @@ textarea { font-family: var(--font); color: var(--text); }
     overflow-wrap: break-word;
     word-break: break-word;
 }
+
 .search-result-card .card-content {
     font-size: 0.76rem;
     color: var(--text-dim);
@@ -900,6 +1090,7 @@ textarea { font-family: var(--font); color: var(--text); }
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
 .search-result-card .card-url {
     font-size: 0.7rem;
     color: var(--accent);
@@ -909,33 +1100,41 @@ textarea { font-family: var(--font); color: var(--text); }
     white-space: nowrap;
     display: block;
 }
+
 .search-result-card .card-url:hover {
     text-decoration: underline;
 }
+
 .search-result-card .card-score {
     font-size: 0.68rem;
     color: var(--text-muted);
 }
+
 /* Themed scrollbars for search widget (match app dark theme) */
 .search-results-answer::-webkit-scrollbar,
 .search-results-list::-webkit-scrollbar {
     width: 6px;
 }
+
 .search-results-answer::-webkit-scrollbar-track,
 .search-results-list::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 10px;
 }
+
 .search-results-answer::-webkit-scrollbar-thumb,
 .search-results-list::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 10px;
 }
+
 .search-results-answer::-webkit-scrollbar-thumb:hover,
 .search-results-list::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
-@supports (scrollbar-color: rgba(255,255,255,0.12) rgba(255,255,255,0.03)) {
+
+@supports (scrollbar-color: rgba(255, 255, 255, 0.12) rgba(255, 255, 255, 0.03)) {
+
     .search-results-answer,
     .search-results-list {
         scrollbar-color: rgba(255, 255, 255, 0.12) rgba(255, 255, 255, 0.03);
@@ -951,13 +1150,22 @@ textarea { font-family: var(--font); color: var(--text); }
    hover. Keeps the glass aesthetic clean without hiding scroll
    affordance entirely.
    ================================================================ */
-.chat-messages::-webkit-scrollbar { width: 4px; }
-.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .chat-messages::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
 }
-.chat-messages::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.14); }
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
 
 
 /* ================================================================
@@ -985,35 +1193,98 @@ textarea { font-family: var(--font); color: var(--text); }
                 gentle "inhale / exhale" effect.
    ================================================================ */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
 @keyframes msgIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
 @keyframes dotBounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-    30%           { transform: translateY(-5px); opacity: 1; }
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    30% {
+        transform: translateY(-5px);
+        opacity: 1;
+    }
 }
+
 @keyframes blink {
-    50% { opacity: 0; }
+    50% {
+        opacity: 0;
+    }
 }
+
 @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
+
 @keyframes micPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.3); }
-    50%      { box-shadow: 0 0 0 8px rgba(255, 107, 107, 0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(255, 107, 107, 0);
+    }
 }
+
 @keyframes ttsPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 106, 239, 0.3); }
-    50%      { box-shadow: 0 0 0 8px rgba(124, 106, 239, 0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(124, 106, 239, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(124, 106, 239, 0);
+    }
 }
+
 @keyframes orbPulse {
-    0%, 100% { transform: scale(1); opacity: 0.92; }
-    50%      { transform: scale(1.10); opacity: 1; }
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.92;
+    }
+
+    50% {
+        transform: scale(1.10);
+        opacity: 1;
+    }
 }
 
 
@@ -1035,27 +1306,97 @@ textarea { font-family: var(--font); color: var(--text); }
    • Input bar honours iOS safe-area at the smaller padding value.
    ================================================================ */
 @media (max-width: 768px) {
-    .header { padding: 0 12px; gap: 8px; }
-    .tagline { display: none; }
-    .logo { font-size: 1rem; }
-    .mode-btn { padding: 6px 10px; font-size: 0.72rem; }
-    .mode-btn svg { display: none; }
-    .status-badge .status-text { display: none; }
-    .chat-messages { padding: 14px 10px; }
-    .input-bar { padding: 8px 10px 8px; padding-bottom: max(8px, env(safe-area-inset-bottom, 8px)); }
-    .input-wrapper { padding: 4px 4px 4px 12px; }
-    .action-btn { width: 36px; height: 36px; min-width: 36px; border-radius: 9px; }
-    .msg-content { font-size: 0.84rem; padding: 10px 13px; }
-    .welcome-title { font-size: 1.3rem; }
-    .message { gap: 8px; }
-    .msg-avatar { width: 26px; height: 26px; font-size: 0.62rem; }
-    .msg-avatar .msg-avatar-icon { width: 16px; height: 16px; }
-    .search-results-widget { width: min(100vw, 360px); }
-    .search-results-header { padding: 12px 14px; }
+    .header {
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .tagline {
+        display: none;
+    }
+
+    .logo {
+        font-size: 1rem;
+    }
+
+    .mode-btn {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+    }
+
+    .mode-btn svg {
+        display: none;
+    }
+
+    .status-badge .status-text {
+        display: none;
+    }
+
+    .chat-messages {
+        padding: 14px 10px;
+    }
+
+    .input-bar {
+        padding: 8px 10px 8px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    }
+
+    .input-wrapper {
+        padding: 4px 4px 4px 12px;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border-radius: 9px;
+    }
+
+    .msg-content {
+        font-size: 0.84rem;
+        padding: 10px 13px;
+    }
+
+    .welcome-title {
+        font-size: 1.3rem;
+    }
+
+    .message {
+        gap: 8px;
+    }
+
+    .msg-avatar {
+        width: 26px;
+        height: 26px;
+        font-size: 0.62rem;
+    }
+
+    .msg-avatar .msg-avatar-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .search-results-widget {
+        width: min(100vw, 360px);
+    }
+
+    .search-results-header {
+        padding: 12px 14px;
+    }
+
     .search-results-query,
-    .search-results-answer { padding: 10px 14px; }
-    .search-results-list { padding: 10px 14px 20px; gap: 10px; }
-    .search-result-card { padding: 10px 12px; }
+    .search-results-answer {
+        padding: 10px 14px;
+    }
+
+    .search-results-list {
+        padding: 10px 14px 20px;
+        gap: 10px;
+    }
+
+    .search-result-card {
+        padding: 10px 12px;
+    }
 }
 
 /* PHONE — max-width: 480 px
@@ -1069,22 +1410,89 @@ textarea { font-family: var(--font); color: var(--text); }
    • Gaps tighten across the board.
    ---------------------------------------------------------------- */
 @media (max-width: 480px) {
-    .header-center { flex: 1; justify-content: center; display: flex; }
-    .mode-switch { width: 100%; }
-    .mode-btn { flex: 1; justify-content: center; }
-    .new-chat-btn { display: none; }
-    .welcome-chips { gap: 6px; }
-    .chip { font-size: 0.72rem; padding: 6px 14px; }
-    .action-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 8px; }
-    .action-btn svg { width: 17px; height: 17px; }
-    .input-actions { gap: 5px; }
-    .input-wrapper { gap: 4px; }
-    .search-results-widget { width: 100vw; max-width: 100%; }
-    .search-results-header { padding: 10px 12px; }
-    .search-results-query { font-size: 0.72rem; padding: 10px 12px; }
-    .search-results-answer { font-size: 0.82rem; padding: 10px 12px; max-height: 160px; }
-    .search-results-list { padding: 8px 12px 16px; gap: 8px; }
-    .search-result-card { padding: 10px 12px; }
-    .search-result-card .card-title { font-size: 0.76rem; }
-    .search-result-card .card-content { font-size: 0.72rem; -webkit-line-clamp: 3; }
+    .header-center {
+        flex: 1;
+        justify-content: center;
+        display: flex;
+    }
+
+    .mode-switch {
+        width: 100%;
+    }
+
+    .mode-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .new-chat-btn {
+        display: none;
+    }
+
+    .welcome-chips {
+        gap: 6px;
+    }
+
+    .chip {
+        font-size: 0.72rem;
+        padding: 6px 14px;
+    }
+
+    .action-btn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        border-radius: 8px;
+    }
+
+    .action-btn svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .input-actions {
+        gap: 5px;
+    }
+
+    .input-wrapper {
+        gap: 4px;
+    }
+
+    .search-results-widget {
+        width: 100vw;
+        max-width: 100%;
+    }
+
+    .search-results-header {
+        padding: 10px 12px;
+    }
+
+    .search-results-query {
+        font-size: 0.72rem;
+        padding: 10px 12px;
+    }
+
+    .search-results-answer {
+        font-size: 0.82rem;
+        padding: 10px 12px;
+        max-height: 160px;
+    }
+
+    .search-results-list {
+        padding: 8px 12px 16px;
+        gap: 8px;
+    }
+
+    .search-result-card {
+        padding: 10px 12px;
+    }
+
+    .search-result-card .card-title {
+        font-size: 0.76rem;
+    }
+
+    .search-result-card .card-content {
+        font-size: 0.72rem;
+        -webkit-line-clamp: 3;
+    }
 }

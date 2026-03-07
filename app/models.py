@@ -46,8 +46,8 @@ class SystemStatus(BaseModel):
     vector_store: VectorStoreStatus
     groq_available: bool
     search_available: bool
-    model_name: str
-    active_sessions: int
+    model_name: str = "llama-3.3-70b-versatile"
+    active_sessions: int = 0
 
 class IntelligenceRequest(BaseModel):
     query: str
@@ -78,9 +78,9 @@ class IntelligenceResponse(BaseModel):
     api_sources_used: List[str] = Field(default_factory=list)
 
 class DetailedSystemStatus(BaseModel):
-    name: str
-    full_name: str
-    version: str
+    name: str = "N.A.T."
+    full_name: str = "Natasha"
+    version: str = "2.0.0"
     status: str
     uptime_start: str
     current_time: str

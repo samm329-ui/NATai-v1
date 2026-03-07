@@ -5,7 +5,7 @@
 /*
  * API — The base URL for all backend requests.
  */
-const API = (typeof window !== 'undefined' && window.location.origin)
+const API = (typeof window !== 'undefined' && window.location.origin && window.location.origin !== 'null' && !window.location.origin.includes('file://'))
     ? window.location.origin
     : 'http://localhost:8000';
 
@@ -17,33 +17,33 @@ let currentMode = 'general';
 let isStreaming = false;
 let isListening = false;
 let orb = null;
-let recognition = null;
 let ttsPlayer = null;
+let recognitionTimeout = null;
 
 const $ = id => document.getElementById(id);
 
 const chatMessages = $('chat-messages');
 const messageInput = $('message-input');
-const sendBtn      = $('send-btn');
-const micBtn       = $('mic-btn');
-const ttsBtn       = $('tts-btn');
-const newChatBtn   = $('new-chat-btn');
-const modeLabel    = $('mode-label');
-const charCount    = $('char-count');
+const sendBtn = $('send-btn');
+const micBtn = $('mic-btn');
+const ttsBtn = $('tts-btn');
+const newChatBtn = $('new-chat-btn');
+const modeLabel = $('mode-label');
+const charCount = $('char-count');
 const welcomeTitle = $('welcome-title');
-const modeSlider   = $('mode-slider');
-const btnGeneral   = $('btn-general');
-const btnRealtime  = $('btn-realtime');
-const statusDot    = document.querySelector('.status-dot');
-const statusText   = document.querySelector('.status-text');
+const modeSlider = $('mode-slider');
+const btnGeneral = $('btn-general');
+const btnRealtime = $('btn-realtime');
+const statusDot = document.querySelector('.status-dot');
+const statusText = document.querySelector('.status-text');
 const orbContainer = $('orb-container');
 const searchResultsToggle = $('search-results-toggle');
 const searchResultsWidget = $('search-results-widget');
-const searchResultsClose  = $('search-results-close');
-const searchResultsQuery  = $('search-results-query');
+const searchResultsClose = $('search-results-close');
+const searchResultsQuery = $('search-results-query');
 const searchResultsAnswer = $('search-results-answer');
-const searchResultsList   = $('search-results-list');
-const pauseBtn           = $('pause-btn');
+const searchResultsList = $('search-results-list');
+const pauseBtn = $('pause-btn');
 
 let currentController = null;
 
@@ -54,7 +54,7 @@ class TTSPlayer {
     constructor() {
         this.queue = [];
         this.playing = false;
-        this.enabled = true; 
+        this.enabled = true;
         this.stopped = false;
         this.audio = document.createElement('audio');
         this.audio.preload = 'auto';
@@ -64,7 +64,7 @@ class TTSPlayer {
         const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
         this.audio.src = silentWav;
         const p = this.audio.play();
-        if (p) p.catch(() => {});
+        if (p) p.catch(() => { });
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const g = ctx.createGain();
@@ -75,7 +75,7 @@ class TTSPlayer {
             o.start(0);
             o.stop(ctx.currentTime + 0.001);
             setTimeout(() => ctx.close(), 200);
-        } catch (_) {}
+        } catch (_) { }
     }
 
     enqueue(base64Audio) {
@@ -177,35 +177,96 @@ function initOrb() {
 /* ================================================================
    SPEECH RECOGNITION
    ================================================================ */
+
 function initSpeech() {
-    // Just focus input - let keyboard handle dictation
-    micBtn.title = 'Tap for voice input';
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    console.log('SpeechRecognition available:', !!SpeechRecognition);
+    
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = function() {
+            console.log('Speech recognition started');
+        };
+        
+        recognition.onresult = function(event) {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join('');
+            
+            console.log('Transcript:', transcript);
+            messageInput.value = transcript;
+            
+            if (event.results[0].isFinal) {
+                if (transcript.trim() && !isStreaming) {
+                    sendMessage(transcript.trim());
+                    messageInput.value = '';
+                }
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            isListening = false;
+            micBtn.classList.remove('listening');
+        };
+        
+        recognition.onend = function() {
+            console.log('Speech recognition ended');
+            isListening = false;
+            micBtn.classList.remove('listening');
+        };
+        
+        micBtn.title = 'Tap for voice input';
+    } else {
+        console.log('SpeechRecognition not available in this browser');
+        micBtn.title = 'Voice input not supported in this browser';
+    }
 }
 
 function startListening() {
     if (isStreaming) return;
-    
-    // Focus the input - keyboard dictation will appear on mobile
-    messageInput.value = '';
-    messageInput.focus();
-    
-    isListening = true;
-    micBtn.classList.add('listening');
-    
-    // Listen for when user stops typing/dictating
-    let timeout;
-    messageInput.oninput = function() {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            if (messageInput.value.trim() && !isStreaming) {
-                sendMessage(messageInput.value.trim());
-                messageInput.value = '';
-            }
-        }, 1500);
-    };
+
+    if (recognition) {
+        try {
+            recognition.start();
+            isListening = true;
+            micBtn.classList.add('listening');
+        } catch (e) {
+            console.error('Recognition start error:', e);
+        }
+    } else {
+        // Fallback: focus input for keyboard dictation
+        messageInput.value = '';
+        messageInput.focus();
+        isListening = true;
+        micBtn.classList.add('listening');
+        
+        let timeout;
+        messageInput.oninput = function () {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (messageInput.value.trim() && !isStreaming) {
+                    sendMessage(messageInput.value.trim());
+                    messageInput.value = '';
+                }
+            }, 1500);
+        };
+    }
 }
 
 function stopListening() {
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch (e) {
+            console.log('Recognition stop error:', e);
+        }
+    }
     isListening = false;
     micBtn.classList.remove('listening');
 }
@@ -233,7 +294,13 @@ function bindEvents() {
         const len = messageInput.value.length;
         charCount.textContent = len > 100 ? `${len.toLocaleString()} / 32,000` : '';
     });
-    micBtn.addEventListener('click', () => { isListening ? stopListening() : startListening(); });
+    micBtn.addEventListener('click', () => {
+        if (isListening) {
+            stopListening();
+        } else {
+            startListening();
+        }
+    });
     ttsBtn.addEventListener('click', () => {
         ttsPlayer.enabled = !ttsPlayer.enabled;
         ttsBtn.classList.toggle('tts-active', ttsPlayer.enabled);
@@ -241,7 +308,7 @@ function bindEvents() {
     });
     pauseBtn.addEventListener('click', stopStreaming);
     newChatBtn.addEventListener('click', newChat);
-    btnGeneral.addEventListener('click',  () => setMode('general'));
+    btnGeneral.addEventListener('click', () => setMode('general'));
     btnRealtime.addEventListener('click', () => setMode('realtime'));
     document.querySelectorAll('.chip').forEach(c => {
         c.addEventListener('click', () => { if (!isStreaming) sendMessage(c.dataset.msg); });
@@ -471,7 +538,7 @@ function scrollToBottom() {
 /* ================================================================
    SEND MESSAGE + SSE STREAMING
    ================================================================ */
-async function sendMessage(textOverride) {
+async function sendMessage(textOverride, isVoice = false) {
     const text = (textOverride || messageInput.value).trim();
     if (!text || isStreaming) return;
 
@@ -572,7 +639,7 @@ async function sendMessage(textOverride) {
         const textSpan = contentEl.querySelector('.msg-stream-text');
         if (textSpan && !fullResponse) textSpan.textContent = '(No response)';
 
-} catch (err) {
+    } catch (err) {
         if (err.name === 'AbortError') {
             removeTypingIndicator();
             addMessage('assistant', 'Response paused.');

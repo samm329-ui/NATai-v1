@@ -7,14 +7,15 @@ import json
 import base64
 import os
 import tempfile
-from fastapi import FastAPI, HTTPException, Request
+import requests
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pydantic import BaseModel
-import os
+from pydantic import BaseModel
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 
@@ -102,9 +103,9 @@ async def generate_tts_audio(text: str) -> str:
 # --- NEW STREAMING GENERATOR ---
 async def _stream_generator(session_id: str, message: str, chat_type: str, use_tts: bool):
     """Handles SSE streaming and background TTS chunking."""
-    yield f"data: {json.dumps({'session_id': session_id, 'chunk': '', 'done': False})}\n\n"
-    
     session = chat_service.get_or_create_session(session_id, chat_type)
+    yield f"data: {json.dumps({'session_id': session.session_id, 'chunk': '', 'done': False})}\n\n"
+    
     chat_service.add_message(session.session_id, "user", message)
     history = chat_service.get_conversation_history(session.session_id)
     
@@ -256,6 +257,32 @@ async def chat_stream(request: Request):
         _stream_generator(session_id, message, "general", use_tts),
         media_type="text/event-stream"
     )
+
+# --- THE NEW UNIVERSAL WHISPER API ENGINE ---
+@app.post("/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    try:
+        audio_bytes = await audio.read()
+        keys = getattr(config, 'GROQ_API_KEYS', [])
+        api_key = keys[0] if keys else getattr(config, 'GROQ_API_KEY', '')
+        
+        if not api_key: return {"text": "", "error": "Groq API key missing"}
+
+        print(f"[Speech] Sending {audio.filename} to Groq Whisper AI...")
+        headers = {"Authorization": f"Bearer {api_key}"}
+        files = {"file": (audio.filename, audio_bytes, audio.content_type)}
+        data = {"model": "whisper-large-v3", "response_format": "json"}
+        
+        response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data=data)
+        
+        if response.status_code == 200:
+            return {"text": response.json().get("text", "").strip()}
+        else:
+            return {"text": "", "error": f"Groq Error: {response.text}"}
+            
+    except Exception as e:
+        print(f"[Speech Error] {e}")
+        return {"text": "", "error": str(e)}
 
 @app.post("/chat/realtime/stream")
 async def chat_realtime_stream(request: Request):

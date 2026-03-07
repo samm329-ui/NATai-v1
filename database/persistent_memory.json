@@ -41,7 +41,21 @@
       "category": "preferences",
       "importance": 7,
       "created_at": "2026-03-01T06:02:10.456380"
+    },
+    {
+      "id": 7,
+      "content": "User's name/title: Boss",
+      "category": "personal",
+      "importance": 10,
+      "created_at": "2026-03-07T02:57:46.172438"
+    },
+    {
+      "id": 8,
+      "content": "User preference mentioned: Curious like can you please tell me my name?",
+      "category": "preferences",
+      "importance": 7,
+      "created_at": "2026-03-07T05:03:12.270239"
     }
   ],
-  "updated_at": "2026-03-01T06:02:10.457661"
+  "updated_at": "2026-03-07T05:03:12.273814"
 }
