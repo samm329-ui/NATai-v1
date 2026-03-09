@@ -101,30 +101,55 @@ class MemoryService:
         return any(kw in text_lower for kw in keywords)
 
     def extract_and_save_memory(self, user_message: str, assistant_response: str = "") -> Optional[str]:
-        """Extract important info from user message and save if significant."""
-        text_lower = user_message.lower()
+        """Extract important info from user message and save robustly."""
         
-        # Check for explicit memory commands
-        if 'call me' in text_lower:
-            # Extract the name/title
-            import re
-            patterns = [
-                r'call me (\w+)',
-                r'always call me (\w+)',
-                r'my name is (\w+)',
-                r'i am (\w+)',
-                r'i\'m (\w+)'
-            ]
-            for pattern in patterns:
-                match = re.search(pattern, text_lower)
-                if match:
-                    name = match.group(1).title()
-                    self.add_memory(f"User's name/title: {name}", category="personal", importance=10)
-                    return f"I've noted it - I'll call you {name} from now on."
-        
-        # Check for preferences
-        if 'prefer' in text_lower or 'like' in text_lower or 'hate' in text_lower:
-            self.add_memory(f"User preference mentioned: {user_message[:100]}", category="preferences", importance=7)
+        # Basic check if it's even worth passing to extracting logic
+        if not self.has_memory_keyword(user_message):
+            # Check for preferences without explicit "remember"
+            text_lower = user_message.lower()
+            if 'prefer' in text_lower or 'like' in text_lower or 'hate' in text_lower or 'love' in text_lower:
+                if len(user_message.split()) < 20: # keep it somewhat bounded
+                    self.add_memory(f"User preference mentioned: {user_message}", category="preferences", importance=6)
+                    return "Preference saved."
+            return None
+
+        # Create localized import to avoid circular dependencies if any
+        try:
+            from app.services.groq_service import groq_service
+            system_prompt = """You are a memory extraction tool for the AI assistant NATASHA.
+The user wants you to remember something permanently.
+Extract the EXACT detail, name, fact, or instruction the user wants stored.
+Format your response as a concise, structured fact.
+DO NOT reply conversationally. ONLY output the fact itself.
+If the text contains multiple facts to remember, combine them into one clear sentence.
+If the text is just "remember this" or similar with no fact, look for the main context of the user message.
+
+Examples:
+User: "my name is Yash and I love cars, remember this"
+Output: User's name is Yash and they love cars.
+
+User: "Remember that I always prefer dark mode"
+Output: User prefers dark mode.
+
+User: "I live in Mumbai, never forget that."
+Output: User lives in Mumbai.
+"""
+            messages = [{"role": "user", "content": user_message}]
+            extracted_fact = groq_service.chat(messages, system_prompt).strip()
+            
+            if extracted_fact:
+                if "name " in extracted_fact.lower():
+                    self.add_memory(extracted_fact, category="personal", importance=10)
+                else:
+                    self.add_memory(extracted_fact, category="general", importance=8)
+                return f"Memory stored: {extracted_fact}"
+        except Exception as e:
+            print(f"[MemoryService] LLM extraction error: {e}. Falling back to basic extraction.")
+            text_lower = user_message.lower()
+            # Simple fallback
+            if 'remember' in text_lower:
+                self.add_memory(user_message, category="general", importance=7)
+                return "Saved."
             
         return None
 

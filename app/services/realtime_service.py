@@ -94,10 +94,12 @@ Guidelines:
             print(f"[Realtime] Error: {e}")
             return {"response": f"I apologize, but I encountered an error: {str(e)}", "sources": [], "search_used": False}
 
-    def stream_chat(self, message: str, conversation_history: List[Dict[str, str]] = None) -> Iterator[str]:
+    async def stream_chat(self, message: str, conversation_history: List[Dict[str, str]] = None) -> Iterator[str]:
         """Streaming chat with real-time web search integration."""
         print(f"[Realtime Stream] Processing: {message[:50]}...")
         
+        # In a real async environment we would await but vector_store_service FAISS call is synchronous. 
+        # But we'll leave it as is for now or use asyncio.to_thread in main.
         context = vector_store_service.get_relevant_context(message)
         search_results = self.search_web(message)
         
@@ -106,8 +108,8 @@ Guidelines:
         messages.append({"role": "user", "content": message})
         
         try:
-            # Yield tokens one by one from groq_service.stream_chat
-            for chunk in groq_service.stream_chat(messages, system_prompt):
+            # Yield tokens one by one from groq_service.stream_chat asynchronously
+            async for chunk in groq_service.stream_chat(messages, system_prompt):
                 yield chunk
         except Exception as e:
             print(f"[Realtime Stream] Error: {e}")

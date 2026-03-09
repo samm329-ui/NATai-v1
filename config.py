@@ -47,7 +47,7 @@ class Config:
 
         # 6. Text-to-Speech (TTS) Configuration
         self.TTS_VOICE = os.getenv("TTS_VOICE", "en-US-AriaNeural") 
-        self.TTS_RATE = os.getenv("TTS_RATE", "+0%")
+        self.TTS_RATE = os.getenv("TTS_RATE", "+15%")
 
 # Create the global config object that main.py is looking for
 config = Config()

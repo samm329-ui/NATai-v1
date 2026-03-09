@@ -48,49 +48,111 @@ const pauseBtn = $('pause-btn');
 let currentController = null;
 
 /* ================================================================
-   TTS AUDIO PLAYER
+   BUFFERED NATIVE TTS ENGINE
    ================================================================ */
+window.utterances = [];
+
 class TTSPlayer {
     constructor() {
-        this.queue = [];
-        this.playing = false;
         this.enabled = true;
-        this.stopped = false;
-        this.audio = document.createElement('audio');
-        this.audio.preload = 'auto';
+        this.buffer = '';
+        this.speaking = false;
+
+        if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+        }
     }
 
-    unlock() {
-        const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-        this.audio.src = silentWav;
-        const p = this.audio.play();
-        if (p) p.catch(() => { });
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const g = ctx.createGain();
-            g.gain.value = 0;
-            const o = ctx.createOscillator();
-            o.connect(g);
-            g.connect(ctx.destination);
-            o.start(0);
-            o.stop(ctx.currentTime + 0.001);
-            setTimeout(() => ctx.close(), 200);
-        } catch (_) { }
+    playText(textChunk) {
+        if (!this.enabled) return;
+        this.buffer += textChunk;
+
+        let match;
+        while ((match = this.buffer.match(/([\s\S]*?[.!?\n]+(?:\s+|$))/)) !== null) {
+            const sentence = match[0];
+            this.buffer = this.buffer.slice(sentence.length);
+            this.speak(sentence.trim());
+        }
     }
 
-    enqueue(base64Audio) {
-        if (!this.enabled || this.stopped) return;
-        this.queue.push(base64Audio);
-        if (!this.playing) this._playLoop();
+    flush() {
+        if (!this.enabled) return;
+        const remaining = this.buffer.trim();
+        if (remaining) {
+            this.speak(remaining);
+            this.buffer = '';
+        }
+    }
+
+    speak(text) {
+        if (!text) return;
+        console.log("X-Ray TTS Speaking:", text);
+
+        // Ensure browser isn't locked in paused state before creating utterance
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.volume = 1.0;
+        utterance.rate = window.ttsRateOffset || 1.1; // slightly faster as requested in python config
+        utterance.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            // Priority 1: Local Windows Zira or natively installed premium female
+            let selectedVoice = voices.find(v =>
+                (v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('female')) && v.localService
+            );
+            // Priority 2: Any English local voice
+            if (!selectedVoice) {
+                selectedVoice = voices.find(v => v.lang.startsWith('en-') && v.localService);
+            }
+            // Priority 3: Fallback cleanly to whatever is first English
+            if (!selectedVoice) {
+                selectedVoice = voices.find(v => v.lang.startsWith('en-'));
+            }
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                console.log("Using Voice:", selectedVoice.name);
+            }
+        }
+
+        utterance.onstart = () => {
+            this.speaking = true;
+            if (ttsBtn) ttsBtn.classList.add('tts-speaking');
+            if (orbContainer) orbContainer.classList.add('speaking');
+            if (orb) orb.setActive(true);
+        };
+
+        utterance.onend = () => {
+            this.speaking = false;
+            if (!window.speechSynthesis.speaking) {
+                if (ttsBtn) ttsBtn.classList.remove('tts-speaking');
+                if (orbContainer) orbContainer.classList.remove('speaking');
+                if (orb) orb.setActive(false);
+            }
+            window.utterances = window.utterances.filter(u => u !== utterance);
+        };
+
+        utterance.onerror = (e) => {
+            console.error("TTS Error:", e);
+            this.speaking = false;
+            window.utterances = window.utterances.filter(u => u !== utterance);
+
+            // Critical Rescue: If engine crashes mid-stream, clear it
+            window.speechSynthesis.cancel();
+        };
+
+        window.utterances.push(utterance);
+        window.speechSynthesis.speak(utterance);
     }
 
     stop() {
-        this.stopped = true;
-        this.audio.pause();
-        this.audio.removeAttribute('src');
-        this.audio.load();
-        this.queue = [];
-        this.playing = false;
+        window.speechSynthesis.cancel();
+        this.buffer = '';
+        this.speaking = false;
         if (ttsBtn) ttsBtn.classList.remove('tts-speaking');
         if (orbContainer) orbContainer.classList.remove('speaking');
         if (orb) orb.setActive(false);
@@ -98,45 +160,16 @@ class TTSPlayer {
 
     reset() {
         this.stop();
-        this.stopped = false;
     }
 
-    async _playLoop() {
-        if (this.playing) return;
-        this.playing = true;
-        this._loopId = (this._loopId || 0) + 1;
-        const myId = this._loopId;
-
-        if (ttsBtn) ttsBtn.classList.add('tts-speaking');
-        if (orbContainer) orbContainer.classList.add('speaking');
-        if (orb) orb.setActive(true);
-
-        while (this.queue.length > 0) {
-            if (this.stopped || myId !== this._loopId) break;
-            const b64 = this.queue.shift();
-            try {
-                await this._playB64(b64);
-            } catch (e) {
-                console.warn('TTS segment error:', e);
-            }
+    unlock() {
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
         }
-
-        if (myId !== this._loopId) return;
-        this.playing = false;
-        if (ttsBtn) ttsBtn.classList.remove('tts-speaking');
-        if (orbContainer) orbContainer.classList.remove('speaking');
-        if (orb) orb.setActive(false);
-    }
-
-    _playB64(b64) {
-        return new Promise(resolve => {
-            this.audio.src = 'data:audio/mp3;base64,' + b64;
-            const done = () => { resolve(); };
-            this.audio.onended = done;
-            this.audio.onerror = done;
-            const p = this.audio.play();
-            if (p) p.catch(done);
-        });
+        // Dummy speak to unlock AudioContext on user gesture natively
+        const u = new SpeechSynthesisUtterance('');
+        u.volume = 0;
+        window.speechSynthesis.speak(u);
     }
 }
 
@@ -178,97 +211,74 @@ function initOrb() {
    SPEECH RECOGNITION
    ================================================================ */
 
+let recognition = null;
+let silenceTimeout = null;
+
 function initSpeech() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    console.log('SpeechRecognition available:', !!SpeechRecognition);
-    
     if (SpeechRecognition) {
         recognition = new SpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
-        
-        recognition.onstart = function() {
-            console.log('Speech recognition started');
+
+        recognition.onstart = () => {
+            isListening = true;
+            micBtn.classList.add('listening');
+            messageInput.placeholder = "Listening...";
         };
-        
-        recognition.onresult = function(event) {
+
+        recognition.onresult = (event) => {
+            // Echo Lock
+            if (isStreaming || window.speechSynthesis.speaking) return;
+
+            clearTimeout(silenceTimeout);
+
             const transcript = Array.from(event.results)
                 .map(result => result[0].transcript)
                 .join('');
-            
-            console.log('Transcript:', transcript);
+
             messageInput.value = transcript;
-            
-            if (event.results[0].isFinal) {
-                if (transcript.trim() && !isStreaming) {
-                    sendMessage(transcript.trim());
-                    messageInput.value = '';
+
+            silenceTimeout = setTimeout(() => {
+                const finalTranscript = messageInput.value.trim();
+                if (finalTranscript && !isStreaming) {
+                    stopListening();
+                    sendMessage(finalTranscript);
                 }
-            }
+            }, 800);
         };
-        
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error:', event.error);
+
+        recognition.onerror = (e) => {
+            console.error('STT error', e);
+            stopListening();
+        };
+
+        recognition.onend = () => {
             isListening = false;
             micBtn.classList.remove('listening');
+            if (!messageInput.value) messageInput.placeholder = "Type your message...";
         };
-        
-        recognition.onend = function() {
-            console.log('Speech recognition ended');
-            isListening = false;
-            micBtn.classList.remove('listening');
-        };
-        
-        micBtn.title = 'Tap for voice input';
     } else {
-        console.log('SpeechRecognition not available in this browser');
         micBtn.title = 'Voice input not supported in this browser';
     }
 }
 
-function startListening() {
+async function startListening() {
     if (isStreaming) return;
-
     if (recognition) {
         try {
             recognition.start();
-            isListening = true;
-            micBtn.classList.add('listening');
-        } catch (e) {
-            console.error('Recognition start error:', e);
-        }
-    } else {
-        // Fallback: focus input for keyboard dictation
-        messageInput.value = '';
-        messageInput.focus();
-        isListening = true;
-        micBtn.classList.add('listening');
-        
-        let timeout;
-        messageInput.oninput = function () {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                if (messageInput.value.trim() && !isStreaming) {
-                    sendMessage(messageInput.value.trim());
-                    messageInput.value = '';
-                }
-            }, 1500);
-        };
+        } catch (e) { }
     }
 }
 
 function stopListening() {
-    if (recognition) {
-        try {
-            recognition.stop();
-        } catch (e) {
-            console.log('Recognition stop error:', e);
-        }
-    }
+    if (recognition) recognition.stop();
+    clearTimeout(silenceTimeout);
     isListening = false;
     micBtn.classList.remove('listening');
+    messageInput.placeholder = "Type your message...";
 }
 
 async function checkHealth() {
@@ -302,9 +312,11 @@ function bindEvents() {
         }
     });
     ttsBtn.addEventListener('click', () => {
-        ttsPlayer.enabled = !ttsPlayer.enabled;
-        ttsBtn.classList.toggle('tts-active', ttsPlayer.enabled);
-        if (!ttsPlayer.enabled) ttsPlayer.stop();
+        if (ttsPlayer) {
+            ttsPlayer.enabled = !ttsPlayer.enabled;
+            ttsBtn.classList.toggle('tts-active', ttsPlayer.enabled);
+            if (!ttsPlayer.enabled) ttsPlayer.stop();
+        }
     });
     pauseBtn.addEventListener('click', stopStreaming);
     newChatBtn.addEventListener('click', newChat);
@@ -553,7 +565,10 @@ async function sendMessage(textOverride, isVoice = false) {
     sendBtn.disabled = true;
     pauseBtn.style.display = 'flex';
 
-    if (ttsPlayer) { ttsPlayer.reset(); ttsPlayer.unlock(); }
+    if (ttsPlayer) {
+        ttsPlayer.reset();
+        ttsPlayer.unlock();
+    }
 
     const endpoint = currentMode === 'realtime' ? '/chat/realtime/stream' : '/chat/stream';
     currentController = new AbortController();
@@ -589,7 +604,10 @@ async function sendMessage(textOverride, isVoice = false) {
 
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+                if (ttsPlayer) ttsPlayer.flush();
+                break;
+            }
 
             sseBuffer += decoder.decode(value, { stream: true });
             const lines = sseBuffer.split('\n');
@@ -610,6 +628,11 @@ async function sendMessage(textOverride, isVoice = false) {
 
                     if (data.chunk) {
                         fullResponse += data.chunk;
+
+                        if (ttsPlayer) {
+                            ttsPlayer.playText(data.chunk);
+                        }
+
                         const textSpan = contentEl.querySelector('.msg-stream-text');
                         if (textSpan) textSpan.textContent = fullResponse;
 
@@ -620,10 +643,6 @@ async function sendMessage(textOverride, isVoice = false) {
                             contentEl.appendChild(cursorEl);
                         }
                         scrollToBottom();
-                    }
-
-                    if (data.audio && ttsPlayer) {
-                        ttsPlayer.enqueue(data.audio);
                     }
 
                     if (data.error) throw new Error(data.error);

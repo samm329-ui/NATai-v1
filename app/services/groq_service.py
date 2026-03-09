@@ -1,4 +1,5 @@
 import time
+import requests
 from typing import List, Dict, Optional, Iterator
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
@@ -81,7 +82,7 @@ class GroqService:
                 
         raise Exception("All Groq API keys failed")
     
-    def stream_chat(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> Iterator[str]:
+    async def stream_chat(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> Iterator[str]:
         """Streaming chat yielding tokens one by one with multi-key fallback."""
         keys = getattr(config, 'GROQ_API_KEYS', [])
         max_retries = len(keys) if keys else 1
@@ -94,8 +95,8 @@ class GroqService:
                 if not self.llm:
                     self._create_llm()
                 
-                # Yield chunks immediately as they arrive from Groq
-                for chunk in self.llm.stream(lc_messages):
+                # Yield chunks immediately as they arrive from Groq asynchronously
+                async for chunk in self.llm.astream(lc_messages):
                     yield chunk.content
                 return  # Exit the loop cleanly if stream completes without error
                 
@@ -145,17 +146,39 @@ IMPORTANT CONTEXT FROM YOUR MEMORY:
         messages.append({"role": "user", "content": user_message})
         return self.chat(messages, system_prompt)
 
-    def stream_chat_with_context(self, user_message: str, context: str, conversation_history: List[Dict[str, str]] = None) -> Iterator[str]:
+    async def stream_chat_with_context(self, user_message: str, context: str, conversation_history: List[Dict[str, str]] = None) -> Iterator[str]:
         """Streaming context chat."""
         system_prompt = self._build_system_prompt(context)
         messages = conversation_history.copy() if conversation_history else []
         messages.append({"role": "user", "content": user_message})
-        return self.stream_chat(messages, system_prompt)
+        async for chunk in self.stream_chat(messages, system_prompt):
+            yield chunk
 
     def is_available(self) -> bool:
         """Checks if Groq API keys are configured."""
         keys = getattr(config, 'GROQ_API_KEYS', [])
         single = getattr(config, 'GROQ_API_KEY', None)
         return len(keys) > 0 or bool(single)
+
+    def transcribe_audio(self, audio_bytes: bytes, filename: str = "audio.webm") -> str:
+        """Transcribes audio using Groq's Whisper model (whisper-large-v3-turbo)."""
+        api_key = self._get_next_api_key()
+        url = "https://api.groq.com/openai/v1/audio/transcriptions"
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        files = {
+            "model": (None, "whisper-large-v3-turbo"),
+            "file": (filename, audio_bytes, "audio/webm")
+        }
+        
+        response = requests.post(url, headers=headers, files=files)
+        
+        if response.status_code == 200:
+            return response.json().get("text", "").strip()
+        else:
+            raise Exception(f"Groq Whisper API Error: {response.text}")
 
 groq_service = GroqService()

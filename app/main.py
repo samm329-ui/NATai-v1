@@ -19,8 +19,6 @@ from pydantic import BaseModel
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 
-import edge_tts
-
 from config import config
 from app.models import ChatRequest, ChatResponse, SystemStatus, VectorStoreStatus, DetailedSystemStatus
 from app.services.chat_service import chat_service
@@ -29,6 +27,7 @@ from app.services.groq_service import groq_service
 from app.services.realtime_service import realtime_service
 from app.services.intelligence_service import intelligence_service
 from app.services.memory_service import memory_service
+from app.services.action_engine import action_engine
 from app.utils.time_info import get_current_datetime
 
 # Startup time for uptime tracking
@@ -76,92 +75,79 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
-# --- NEW TTS GENERATOR FUNCTION ---
-async def generate_tts_audio(text: str) -> str:
-    """Generates TTS audio and returns it as a base64 string."""
-    if not text or not text.strip():
-        return ""
-    try:
-        voice = getattr(config, 'TTS_VOICE', 'en-GB-RyanNeural')
-        rate = getattr(config, 'TTS_RATE', '+0%')
-        communicate = edge_tts.Communicate(text, voice, rate=rate)
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
-            tmp_path = tmp_file.name
-        
-        await communicate.save(tmp_path)
-        
-        with open(tmp_path, "rb") as audio_file:
-            encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
-            
-        os.remove(tmp_path)
-        return encoded_audio
-    except Exception as e:
-        print(f"[TTS Error] {e}")
-        return ""
-
 # --- NEW STREAMING GENERATOR ---
 async def _stream_generator(session_id: str, message: str, chat_type: str, use_tts: bool):
-    """Handles SSE streaming and background TTS chunking."""
+    """Handles SSE streaming with Semantic Action evaluation."""
     session = chat_service.get_or_create_session(session_id, chat_type)
     yield f"data: {json.dumps({'session_id': session.session_id, 'chunk': '', 'done': False})}\n\n"
     
+    # 1. Action Engine Interception
+    action_result = await asyncio.to_thread(action_engine.evaluate_and_execute, message)
+    if action_result:
+        # Save as user+assistant message since it was a command
+        chat_service.add_message(session.session_id, "user", message)
+        chat_service.add_message(session.session_id, "assistant", action_result)
+        await asyncio.to_thread(chat_service.save_session, session.session_id)
+        yield f"data: {json.dumps({'chunk': action_result, 'done': True})}\n\n"
+        return
+
+    # 2. Normal Chat Flow
     chat_service.add_message(session.session_id, "user", message)
     history = chat_service.get_conversation_history(session.session_id)
     
-    full_response = ""
-    sentence_buffer = ""
+    queue = asyncio.Queue()
     
-    try:
-        # We will use the stream method which we will add to the services next
-        if chat_type == "realtime":
-            response_stream = realtime_service.stream_chat(message, history)
-        else:
-            response_stream = groq_service.stream_chat_with_context(message, vector_store_service.get_relevant_context(message), history)
-
-        for chunk_text in response_stream:
-            if chunk_text:
-                full_response += chunk_text
-                sentence_buffer += chunk_text
-                
-                # Yield text chunk to frontend instantly
-                yield f"data: {json.dumps({'chunk': chunk_text, 'done': False})}\n\n"
-                
-                # Check for sentence end for TTS
-                if use_tts and any(punct in sentence_buffer for punct in ['. ', '! ', '? ', '\n']):
-                    # Split at the first punctuation mark
-                    for punct in ['. ', '! ', '? ', '\n']:
-                        if punct in sentence_buffer:
-                            parts = sentence_buffer.split(punct, 1)
-                            sentence_to_speak = parts[0] + punct.strip()
-                            sentence_buffer = parts[1]
-                            
-                            # Only generate audio if the sentence has actual letters/numbers
-                            if len(sentence_to_speak.strip()) > 1:
-                                audio_b64 = await generate_tts_audio(sentence_to_speak)
-                                if audio_b64:
-                                    yield f"data: {json.dumps({'audio': audio_b64, 'sentence': sentence_to_speak, 'done': False})}\n\n"
-                            break
-
-        # Process any remaining text in buffer for TTS
-        if use_tts and len(sentence_buffer.strip()) > 1:
-            audio_b64 = await generate_tts_audio(sentence_buffer)
-            if audio_b64:
-                yield f"data: {json.dumps({'audio': audio_b64, 'sentence': sentence_buffer, 'done': False})}\n\n"
-
-        # Save session
-        chat_service.add_message(session.session_id, "assistant", full_response)
-        chat_service.save_session(session.session_id)
+    async def process_stream():
+        full_response = ""
         
-        # Extract and save persistent memories
-        memory_service.extract_and_save_memory(message, full_response)
-        
-    except Exception as e:
-        print(f"[Stream Error] {e}")
-        yield f"data: {json.dumps({'chunk': f' Error: {str(e)}', 'done': True, 'session_id': session.session_id})}\n\n"
-        return
+        try:
+            if chat_type == "realtime":
+                # Realtime service stream is an async generator
+                response_stream = realtime_service.stream_chat(message, history)
+            else:
+                context = await asyncio.to_thread(vector_store_service.get_relevant_context, message)
+                response_stream = groq_service.stream_chat_with_context(message, context, history)
 
-    yield f"data: {json.dumps({'chunk': '', 'done': True, 'session_id': session.session_id})}\n\n"
+            async for chunk_text in response_stream:
+                if chunk_text:
+                    full_response += chunk_text
+                    # Yield text chunk to frontend instantly via queue
+                    await queue.put({"type": "text", "chunk": chunk_text})
+
+            # Extract memories asynchronously at the end
+            try:
+                extracted = await asyncio.to_thread(memory_service.extract_and_save_memory, message, full_response)
+                if extracted:
+                    print(f"[Memory Extracted] {extracted}")
+            except Exception as e:
+                print(f"Memory extraction error: {e}")
+
+            # Save session
+            chat_service.add_message(session.session_id, "assistant", full_response)
+            await asyncio.to_thread(chat_service.save_session, session.session_id)
+            
+        except Exception as e:
+            print(f"[Stream Error] {e}")
+            await queue.put({"type": "error", "chunk": f" Error: {str(e)}"})
+            
+        finally:
+            await queue.put({"type": "done"})
+
+    # Start processing in the background
+    worker_task = asyncio.create_task(process_stream())
+    
+    # Read from queue and yield to client
+    while True:
+        item = await queue.get()
+        
+        if item["type"] == "done":
+            break
+        elif item["type"] == "text":
+            yield f"data: {json.dumps({'chunk': item['chunk'], 'done': False})}\n\n"
+        elif item["type"] == "error":
+            yield f"data: {json.dumps({'error': item['chunk']})}\n\n"
+            
+    yield f"data: {json.dumps({'done': True})}\n\n"
 
 
 # --- EXISTING ENDPOINTS ---
@@ -419,6 +405,18 @@ async def list_learning_files():
             "size": file_path.stat().st_size
         })
     return files
+
+# AUDIO TRANSCRIPTION ENDPOINT
+@app.post("/chat/transcribe")
+async def transcribe_audio_endpoint(file: UploadFile = File(...)):
+    """Receives audio chunks from frontend, transcribes via Groq Whisper v3."""
+    try:
+        audio_bytes = await file.read()
+        text = await asyncio.to_thread(groq_service.transcribe_audio, audio_bytes, file.filename)
+        return {"text": text}
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # PERSISTENT MEMORY ENDPOINTS
 @app.get("/memory")
